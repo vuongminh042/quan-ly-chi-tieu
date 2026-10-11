@@ -1,0 +1,11 @@
+export type User = { id: string; name: string; email: string; avatar?: string; isAdmin?: boolean };
+export type Kind = 'income' | 'expense';
+export type AccountKind = 'cash' | 'bank' | 'ewallet';
+export type Category = { _id: string; name: string; kind: Kind; icon: string; color: string; isDefault?: boolean };
+export type Account = { _id: string; name: string; kind: AccountKind; openingBalance: number; balance: number; color: string };
+export type Transaction = { _id: string; kind: Kind; amount: number; date: string; categoryId: string | Category; accountId: string | Account; note: string; paymentMethod: string };
+export type Budget = { _id: string; period: string; amount: number; spent: number; categoryId: string | Category };
+export type Goal = { _id: string; name: string; targetAmount: number; savedAmount: number; deadline?: string; icon: string; color: string };
+export type TransactionInput = { kind: Kind; amount: number; date: string; categoryId: string; accountId: string; note: string; paymentMethod: string };
+export type Report = { totalIncome: number; totalExpense: number; net: number; transactionCount: number; categories: { name: string; kind: Kind; amount: number; color: string }[]; accounts: { name: string; income: number; expense: number }[]; monthly: { month: string; label: string; income: number; expense: number }[]; trend?: { period: string; label: string; income: number; expense: number }[] };
+export type PageResult<T> = { items: T[]; pagination: { page: number; limit: number; total: number; totalPages: number } };

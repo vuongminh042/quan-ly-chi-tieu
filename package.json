@@ -1,0 +1,19 @@
+{
+  "name": "chitieu-mern",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "engines": { "node": ">=20.11" },
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c green,cyan \"pnpm dev:api\" \"pnpm dev:web\"",
+    "dev:api": "pnpm --filter @chitieu/server dev",
+    "dev:web": "pnpm --filter @chitieu/client dev",
+    "build": "pnpm --filter @chitieu/client build && pnpm --filter @chitieu/server build",
+    "start": "pnpm --filter @chitieu/server start",
+    "typecheck": "pnpm --filter @chitieu/client typecheck && pnpm --filter @chitieu/server typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3"
+  }
+}
