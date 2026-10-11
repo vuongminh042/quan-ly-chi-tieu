@@ -11,11 +11,13 @@ import {
   Plus,
   Settings,
   Sparkles,
+  Sun,
   Target,
   Wallet,
   X,
   ChartNoAxesCombined,
   ShieldCheck,
+  Moon,
 } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { post } from "../lib/api";
@@ -59,6 +61,7 @@ const titles: Record<string, string> = {
   "/settings": "Cài đặt",
   "/admin": "Quản trị tài khoản",
 };
+const THEME_KEY = "chitieu-theme";
 export function AppShell() {
   const { user, demo, setUser } = useAuth();
   const showToast = useToast();
@@ -66,6 +69,9 @@ export function AppShell() {
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [refresh, setRefresh] = useState(0);
   const [mobileNav, setMobileNav] = useState(false);
+  const [darkMode, setDarkMode] = useState(
+    () => document.documentElement.dataset.theme === "dark",
+  );
   const loc = useLocation();
   const nav = useNavigate();
   const notify = (message: string) => showToast(message);
@@ -93,6 +99,19 @@ export function AppShell() {
     nav("/login");
   }
   const title = titles[loc.pathname] ?? "Chi Tiêu";
+  function toggleTheme() {
+    const nextDarkMode = !darkMode;
+    setDarkMode(nextDarkMode);
+    document.documentElement.dataset.theme = nextDarkMode ? "dark" : "light";
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute("content", nextDarkMode ? "#101714" : "#f6f8f5");
+    try {
+      localStorage.setItem(THEME_KEY, nextDarkMode ? "dark" : "light");
+    } catch {
+      // The selected theme remains active for the current page.
+    }
+  }
   return (
     <FinanceUI.Provider value={value}>
       <div className="app-frame">
@@ -195,6 +214,14 @@ export function AppShell() {
             </div>
             <div className="top-actions">
               <button
+                className="icon-button theme-toggle"
+                onClick={toggleTheme}
+                aria-label={darkMode ? "Chuyển sang chế độ sáng" : "Chuyển sang chế độ tối"}
+                title={darkMode ? "Chế độ sáng" : "Chế độ tối"}
+              >
+                {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+              <button
                 className="icon-button help-button"
                 aria-label="Trợ giúp"
                 title="Tất cả số tiền dùng đơn vị VND"
@@ -230,17 +257,6 @@ export function AppShell() {
               </button>
             </div>
           </header>
-          {demo && (
-            <div className="demo-banner">
-              <Sparkles size={15} />
-              <span>
-                <strong>Chế độ xem thử</strong> · Dữ liệu minh họa lưu trên
-                trình duyệt này. Kết nối MongoDB để dùng tài khoản và lưu dữ
-                liệu thật.
-              </span>
-              <button onClick={() => nav("/settings")}>Thiết lập</button>
-            </div>
-          )}
           <div className="content-area">
             <Outlet
               context={{

@@ -1,0 +1,207 @@
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  color: #e4ece7;
+  background: #101714;
+  --ink: #e4ece7;
+  --muted: #9aa9a1;
+  --line: #2c3a33;
+  --paper: #19221e;
+  --wash: #101714;
+  --green: #54b99c;
+  --green-dark: #37a184;
+  --green-soft: #1b382f;
+  --coral: #f09a80;
+  --coral-soft: #3b2925;
+  --amber: #e5bc6c;
+  --shadow: 0 12px 34px rgba(0, 0, 0, .2);
+}
+
+:root[data-theme="dark"] body,
+:root[data-theme="dark"] .app-frame,
+:root[data-theme="dark"] .main-column,
+:root[data-theme="dark"] .content-area,
+:root[data-theme="dark"] .auth-layout {
+  color: var(--ink);
+  background: var(--wash);
+}
+
+:root[data-theme="dark"] .sidebar,
+:root[data-theme="dark"] .topbar,
+:root[data-theme="dark"] .panel,
+:root[data-theme="dark"] .stat-card,
+:root[data-theme="dark"] .budget-stat-card,
+:root[data-theme="dark"] .transaction-row,
+:root[data-theme="dark"] .transactions-summary,
+:root[data-theme="dark"] .budget-overview,
+:root[data-theme="dark"] .report-metric,
+:root[data-theme="dark"] .settings-category-row,
+:root[data-theme="dark"] .privacy-card,
+:root[data-theme="dark"] .settings-about,
+:root[data-theme="dark"] .profile-chip,
+:root[data-theme="dark"] .search-box,
+:root[data-theme="dark"] .filter-controls select,
+:root[data-theme="dark"] .report-filters input,
+:root[data-theme="dark"] .report-filters select,
+:root[data-theme="dark"] .admin-toolbar select,
+:root[data-theme="dark"] .admin-search,
+:root[data-theme="dark"] .table-footer button,
+:root[data-theme="dark"] .row-actions button,
+:root[data-theme="dark"] .period-switch button,
+:root[data-theme="dark"] .report-preset button,
+:root[data-theme="dark"] .icon-button,
+:root[data-theme="dark"] .button-secondary,
+:root[data-theme="dark"] .button-ghost {
+  color: var(--ink);
+  background-color: var(--paper);
+  border-color: var(--line);
+}
+
+:root[data-theme="dark"] .topbar {
+  background-color: rgba(25, 34, 30, .92);
+}
+
+:root[data-theme="dark"] .side-link {
+  color: #a6b3ac;
+}
+
+:root[data-theme="dark"] .side-link:hover,
+:root[data-theme="dark"] .side-link.active,
+:root[data-theme="dark"] .settings-link.active {
+  color: #74d2b5;
+  background: #1b382f;
+}
+
+:root[data-theme="dark"] .sidebar-promo,
+:root[data-theme="dark"] .settings-category-row>small,
+:root[data-theme="dark"] .admin-user-icon,
+:root[data-theme="dark"] .admin-audit-icon,
+:root[data-theme="dark"] .admin-summary {
+  color: #b5d8c8;
+  background: #1b3028;
+  border-color: #2d493d;
+}
+
+:root[data-theme="dark"] .brand-text,
+:root[data-theme="dark"] .crumb b,
+:root[data-theme="dark"] .page-title-row h1,
+:root[data-theme="dark"] .panel-head h2,
+:root[data-theme="dark"] .stat-card strong,
+:root[data-theme="dark"] .budget-stat-card strong,
+:root[data-theme="dark"] .table-transaction strong,
+:root[data-theme="dark"] .settings-user-intro strong,
+:root[data-theme="dark"] .settings-category-row strong,
+:root[data-theme="dark"] .privacy-card h2,
+:root[data-theme="dark"] .settings-about strong,
+:root[data-theme="dark"] .report-metric strong,
+:root[data-theme="dark"] .admin-summary strong,
+:root[data-theme="dark"] .admin-audit-row strong,
+:root[data-theme="dark"] .form-stack label,
+:root[data-theme="dark"] .empty-state strong,
+:root[data-theme="dark"] .auth-form-wrap h2 {
+  color: var(--ink);
+}
+
+:root[data-theme="dark"] .workspace-label,
+:root[data-theme="dark"] .eyebrow,
+:root[data-theme="dark"] .crumb span,
+:root[data-theme="dark"] .table-transaction small,
+:root[data-theme="dark"] .settings-count,
+:root[data-theme="dark"] .empty-state p,
+:root[data-theme="dark"] .auth-form-wrap>p,
+:root[data-theme="dark"] .settings-user-intro small,
+:root[data-theme="dark"] .privacy-card p,
+:root[data-theme="dark"] .settings-about p {
+  color: var(--muted);
+}
+
+:root[data-theme="dark"] .form-stack input,
+:root[data-theme="dark"] .form-stack select,
+:root[data-theme="dark"] .inline-budget-form input,
+:root[data-theme="dark"] .inline-budget-form select,
+:root[data-theme="dark"] .inline-goal-form input,
+:root[data-theme="dark"] .inline-account-form input,
+:root[data-theme="dark"] .inline-account-form select,
+:root[data-theme="dark"] .category-add-form input,
+:root[data-theme="dark"] .category-add-form select,
+:root[data-theme="dark"] .admin-search input,
+:root[data-theme="dark"] .search-box input {
+  color: var(--ink);
+  background: #121a16;
+  border-color: var(--line);
+}
+
+:root[data-theme="dark"] input::placeholder,
+:root[data-theme="dark"] textarea::placeholder {
+  color: #75847c;
+}
+
+:root[data-theme="dark"] .data-table th {
+  color: #a2b0a8;
+  background: #202a25;
+}
+
+:root[data-theme="dark"] .data-table td,
+:root[data-theme="dark"] .transaction-row,
+:root[data-theme="dark"] .account-divider,
+:root[data-theme="dark"] .privacy-divider,
+:root[data-theme="dark"] .admin-audit-row {
+  border-color: var(--line);
+}
+
+:root[data-theme="dark"] .transaction-row:hover,
+:root[data-theme="dark"] .row-actions button:hover,
+:root[data-theme="dark"] .table-footer button:hover,
+:root[data-theme="dark"] .period-switch button:hover,
+:root[data-theme="dark"] .report-preset button:hover,
+:root[data-theme="dark"] .icon-button:hover {
+  background: #24332c;
+}
+
+:root[data-theme="dark"] .goal-summary {
+  color: var(--ink);
+  background: linear-gradient(110deg, #19221e 70%, #20352a);
+  border-color: var(--line);
+}
+
+:root[data-theme="dark"] .goal-card-featured {
+  background: #20352c;
+}
+
+:root[data-theme="dark"] .modal-card,
+:root[data-theme="dark"] .confirm-dialog,
+:root[data-theme="dark"] .avatar-preview-close {
+  color: var(--ink);
+  background: var(--paper);
+  border-color: var(--line);
+}
+
+:root[data-theme="dark"] .modal-head h2,
+:root[data-theme="dark"] .confirm-copy h2 {
+  color: var(--ink);
+}
+
+:root[data-theme="dark"] .modal-backdrop,
+:root[data-theme="dark"] .confirm-backdrop {
+  background: rgba(0, 0, 0, .68);
+}
+
+:root[data-theme="dark"] .auth-form-area {
+  background: var(--wash);
+}
+
+:root[data-theme="dark"] .theme-toggle {
+  color: #e5bc6c;
+}
+
+:root[data-theme="dark"] .demo-banner {
+  color: #d8e8df;
+  background: #1b3028;
+  border-color: #2d493d;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-theme="dark"] body,
+  :root[data-theme="light"] body {
+    transition: background-color .18s ease, color .18s ease;
+  }
+}

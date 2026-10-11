@@ -6,7 +6,7 @@ import type { AppOutlet } from '../components/AppShell';
 import { useConfirm } from '../components/ConfirmDialog';
 import { Button, EmptyState, PageTitle, Panel } from '../components/UI';
 
-type ManagedUser = { id: string; name: string; email: string; isActive: boolean; createdAt: string };
+type ManagedUser = { id: string; name: string; email: string; avatar?: string; isActive: boolean; createdAt: string };
 type UserList = { items: ManagedUser[]; pagination: { page: number; limit: number; total: number; totalPages: number } };
 type AdminAction = { adminEmail: string; targetEmail: string; action: 'account_restored'; createdAt: string };
 
@@ -105,7 +105,7 @@ export default function Admin() {
               <thead><tr><th>Tài khoản</th><th>Ngày tạo</th><th>Trạng thái</th><th></th></tr></thead>
               <tbody>{users.items.map(account => (
                 <tr key={account.id}>
-                  <td><div className="table-transaction"><span className="admin-user-icon"><Users size={16}/></span><span><strong>{account.name}</strong><small>{account.email}</small></span></div></td>
+                  <td><div className="table-transaction"><span className="admin-user-icon">{account.avatar ? <img src={account.avatar} alt={`Ảnh đại diện ${account.name}`} /> : <Users size={16}/>}</span><span><strong>{account.name}</strong><small>{account.email}</small></span></div></td>
                   <td>{dateTime(account.createdAt)}</td>
                   <td><span className={`admin-status ${account.isActive ? 'active' : 'deactivated'}`}>{account.isActive ? 'Đang hoạt động' : 'Đã vô hiệu hóa'}</span></td>
                   <td className="align-right">{!account.isActive && <Button variant="secondary" disabled={restoring === account.id} onClick={() => void restoreAccount(account)}><RotateCcw size={14}/>{restoring === account.id ? 'Đang khôi phục…' : 'Khôi phục'}</Button>}</td>

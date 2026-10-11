@@ -17,7 +17,8 @@ type AuthUser = {
 type AuthField = "name" | "email" | "password";
 type FieldErrors = Partial<Record<AuthField, string>>;
 
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const emailPattern =
+  /^[A-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+$/i;
 const namePattern = /^[\p{L}\p{M}]+(?:[ .'\u2019-][\p{L}\p{M}]+)*$/u;
 
 function validate(
@@ -30,20 +31,27 @@ function validate(
   const password = String(data.password ?? "");
 
   if (mode === "register") {
-    if (name.length < 2 || name.length > 80)
-      errors.name = "Tên hiển thị cần từ 2 đến 80 ký tự.";
+    if (!name) errors.name = "Vui lòng nhập Họ và Tên.";
+    else if (name.length < 2 || name.length > 80)
+      errors.name = "Họ và Tên cần từ 2 đến 80 ký tự.";
     else if (!namePattern.test(name))
       errors.name =
-        "Tên chỉ gồm chữ cái, dấu cách, dấu chấm, dấu nháy hoặc dấu gạch nối.";
+        "Họ và Tên chỉ gồm chữ cái, dấu cách, dấu chấm, dấu nháy hoặc dấu gạch nối.";
+    if (errors.name) return errors;
   }
-  if (!email || email.length > 254 || !emailPattern.test(email))
-    errors.email = "Vui lòng nhập địa chỉ email hợp lệ (tối đa 254 ký tự).";
-  if (mode === "register" && (password.length < 8 || password.length > 128)) {
-    errors.password = "Mật khẩu cần từ 8 đến 128 ký tự.";
-  } else if (mode === "login" && (!password || password.length > 128)) {
-    errors.password = "Vui lòng nhập mật khẩu (tối đa 128 ký tự).";
+  if (!email) errors.email = "Vui lòng nhập Email.";
+  else if (email.length > 254 || !emailPattern.test(email))
+    errors.email = "Vui lòng nhập đúng định dạng Email.";
+  if (errors.email) return errors;
+
+  if (!password) {
+    errors.password = "Vui lòng nhập Mật khẩu.";
   } else if (!password.trim()) {
     errors.password = "Mật khẩu không được chỉ chứa khoảng trắng.";
+  } else if (password.length > 128) {
+    errors.password = "Mật khẩu không được vượt quá 128 ký tự.";
+  } else if (mode === "register" && password.length < 8) {
+    errors.password = "Mật khẩu phải có ít nhất 8 ký tự.";
   }
   return errors;
 }
@@ -55,6 +63,15 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+
+  function clearFieldError(field: AuthField) {
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (demo)
@@ -72,7 +89,12 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
     const validationErrors = validate(mode, payload);
     setFieldErrors(validationErrors);
     if (Object.keys(validationErrors).length) {
-      showToast("Vui lòng kiểm tra lại thông tin đã nhập.", "error");
+      const firstInvalidField = Object.keys(validationErrors)[0] as AuthField;
+      (
+        event.currentTarget.elements.namedItem(firstInvalidField) as
+          | HTMLInputElement
+          | null
+      )?.focus();
       return;
     }
 
@@ -167,7 +189,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
           <form onSubmit={submit} className="form-stack" noValidate>
             {mode === "register" && (
               <label>
-                Tên hiển thị
+                Họ và Tên
                 <input
                   name="name"
                   placeholder="Nguyễn Minh Anh"
@@ -177,6 +199,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
                   required
                   aria-invalid={!!fieldErrors.name}
                   aria-describedby={fieldErrors.name ? "name-error" : undefined}
+                  onChange={() => clearFieldError("name")}
                 />
                 {fieldErrors.name && (
                   <small id="name-error" className="field-error">
@@ -196,6 +219,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
                 required
                 aria-invalid={!!fieldErrors.email}
                 aria-describedby={fieldErrors.email ? "email-error" : undefined}
+                onChange={() => clearFieldError("email")}
               />
               {fieldErrors.email && (
                 <small id="email-error" className="field-error">
@@ -222,6 +246,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
                   aria-describedby={
                     fieldErrors.password ? "password-error" : undefined
                   }
+                  onChange={() => clearFieldError("password")}
                 />
                 <button
                   type="button"

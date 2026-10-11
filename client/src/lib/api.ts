@@ -10,6 +10,16 @@ export const isDemoMode = () => demoMode;
 
 function id() { return `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
 function getId(value: unknown): string { return typeof value === 'string' ? value : String((value as { _id?: string })?._id ?? ''); }
+function ensureDemoBalance(accountId: string, amount: number, kind: unknown, excludeTransactionId?: string) {
+  if (kind !== 'expense') return;
+  const store = readStore();
+  const account = store.accounts.find(item => item._id === accountId);
+  if (!account) throw new Error('Tài khoản tiền không tồn tại.');
+  const movement = store.transactions
+    .filter(item => getId(item.accountId) === accountId && item._id !== excludeTransactionId)
+    .reduce((sum, item) => sum + (item.kind === 'income' ? item.amount : -item.amount), 0);
+  if (amount > account.openingBalance + movement) throw new Error('Số dư của bạn không đủ.');
+}
 function demoRequest(method: string, path: string, data?: Record<string, unknown>, params: Record<string, unknown> = {}): unknown {
   const store = readStore();
   const clean = path.replace(/^\//, '').replace(/\?.*$/, '');
@@ -36,13 +46,30 @@ function demoRequest(method: string, path: string, data?: Record<string, unknown
       const page = Math.max(1, Number(params.page ?? 1)); const limit = Math.max(1, Number(params.limit ?? 10)); const total = rows.length;
       return { items: rows.slice((page - 1) * limit, page * limit), pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
     }
-    if (method === 'POST' && data) { const item = { ...data, _id: id() } as any; store.transactions.unshift(item); writeStore(store); return { item }; }
+    if (method === 'POST' && data) {
+      ensureDemoBalance(String(data.accountId ?? ''), Number(data.amount), data.kind);
+      const item = { ...data, _id: id() } as any;
+      store.transactions.unshift(item);
+      writeStore(store);
+      return { item };
+    }
   }
   const transactionMatch = clean.match(/^transactions\/([^/]+)$/);
   if (transactionMatch) {
     const index = store.transactions.findIndex(item => item._id === transactionMatch[1]);
     if (index < 0) throw new Error('Không tìm thấy giao dịch.');
-    if (method === 'PATCH' && data) { store.transactions[index] = { ...store.transactions[index], ...data }; writeStore(store); return { item: store.transactions[index] }; }
+    if (method === 'PATCH' && data) {
+      const updated = { ...store.transactions[index], ...data };
+      ensureDemoBalance(
+        getId(updated.accountId),
+        Number(updated.amount),
+        updated.kind,
+        updated._id,
+      );
+      store.transactions[index] = updated;
+      writeStore(store);
+      return { item: updated };
+    }
     if (method === 'DELETE') { store.transactions.splice(index, 1); writeStore(store); return {}; }
   }
   const collectionName = clean.split('/')[0] as keyof Pick<DemoStore, 'accounts' | 'categories' | 'budgets' | 'goals'>;

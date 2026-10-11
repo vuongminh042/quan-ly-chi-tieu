@@ -56,7 +56,7 @@ router.get("/users", async (req, res) => {
   const [total, users] = await Promise.all([
     User.countDocuments(filter),
     User.find(filter)
-      .select("name email isActive createdAt")
+      .select("name email avatar isActive createdAt")
       .sort({ createdAt: -1, _id: -1 })
       .skip((query.page - 1) * pageSize)
       .limit(pageSize)
@@ -67,6 +67,7 @@ router.get("/users", async (req, res) => {
       id: String(user._id),
       name: user.name,
       email: user.email,
+      avatar: user.avatar,
       isActive: user.isActive !== false,
       createdAt: user.createdAt,
     })),
