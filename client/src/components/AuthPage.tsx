@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { ArrowRight, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { post } from "../lib/api";
@@ -60,6 +60,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const { setUser, demo } = useAuth();
   const showToast = useToast();
   const nav = useNavigate();
+  const location = useLocation();
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -80,6 +81,22 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
         "info",
       );
   }, [demo, showToast]);
+
+  useEffect(() => {
+    const result = new URLSearchParams(location.search).get("google");
+    if (!result) return;
+    const messages: Record<string, string> = {
+      not_configured: "Đăng nhập Google chưa được cấu hình trên máy chủ.",
+      invalid_state: "Phiên đăng nhập Google không hợp lệ. Vui lòng thử lại.",
+      cancelled: "Bạn đã hủy đăng nhập Google.",
+      email_unverified: "Tài khoản Google cần có email đã xác minh.",
+      account_deactivated:
+        "Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.",
+      failed: "Không thể đăng nhập bằng Google. Vui lòng thử lại.",
+    };
+    showToast(messages[result] ?? "Không thể đăng nhập bằng Google.", "error");
+    nav(location.pathname, { replace: true });
+  }, [location.pathname, location.search, nav, showToast]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -271,6 +288,40 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
               <ArrowRight size={17} />
             </Button>
           </form>
+          {!demo && (
+            <>
+              <div className="auth-divider"><span>hoặc tiếp tục với</span></div>
+              <button
+                className="google-signin-button"
+                type="button"
+                onClick={() => window.location.assign("/api/auth/google")}
+              >
+                <svg
+                  className="google-signin-mark"
+                  viewBox="0 0 48 48"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill="#4285F4"
+                    d="M43.6 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h11a9.4 9.4 0 0 1-4.2 6.2v5.5h7.1c4.2-3.9 6.7-9.5 6.7-15.7Z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M24 44c5.9 0 10.8-2 14.4-5.4l-7.1-5.5c-2 1.3-4.4 2.1-7.3 2.1-5.6 0-10.3-3.8-12-8.9H4.7v5.6A21.7 21.7 0 0 0 24 44Z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M12 26.3a13 13 0 0 1 0-8.3v-5.6H4.7a21.7 21.7 0 0 0 0 19.5l7.3-5.6Z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M24 9.1c3.2 0 6.1 1.1 8.3 3.3l6.2-6.2A20.8 20.8 0 0 0 24 0 21.7 21.7 0 0 0 4.7 12.4L12 18c1.7-5.1 6.4-8.9 12-8.9Z"
+                  />
+                </svg>
+                Tiếp tục với Google
+              </button>
+            </>
+          )}
           <div className="auth-switch">
             {mode === "login" ? "Chưa có tài khoản?" : "Đã có tài khoản?"}{" "}
             <Link to={mode === "login" ? "/register" : "/login"}>

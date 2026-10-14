@@ -2,6 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
+import { randomBytes } from "node:crypto";
 import { User, Account, Category } from "../models/core.js";
 import {
   requireAuth,
@@ -14,6 +15,7 @@ import { loginSchema, registerSchema } from "./validation.js";
 
 const router = Router();
 router.use(requireDatabase);
+const googleStateCookie = "chitieu_google_state";
 const loginAttemptLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 100,
@@ -70,6 +72,142 @@ async function seedStarterData(userId: string): Promise<void> {
   ]);
 }
 
+function googleRedirectUri(req: import("express").Request): string {
+  return (
+    process.env.GOOGLE_REDIRECT_URI?.trim() ||
+    `${req.protocol}://${req.get("host")}/api/auth/google/callback`
+  );
+}
+
+function googleCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.COOKIE_SECURE === "false" ? false : true,
+    sameSite: (process.env.COOKIE_SAME_SITE === "lax" ? "lax" : "none") as
+      | "lax"
+      | "none",
+    path: "/api/auth/google",
+    maxAge: 10 * 60 * 1000,
+  };
+}
+
+router.get("/google", (req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
+  if (!clientId || !process.env.GOOGLE_CLIENT_SECRET?.trim()) {
+    res.redirect("/login?google=not_configured");
+    return;
+  }
+  const state = randomBytes(32).toString("hex");
+  res.cookie(googleStateCookie, state, googleCookieOptions());
+  const authorizationUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+  authorizationUrl.search = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: googleRedirectUri(req),
+    response_type: "code",
+    scope: "openid email profile",
+    state,
+    prompt: "select_account",
+  }).toString();
+  res.redirect(authorizationUrl.toString());
+});
+
+router.get("/google/callback", async (req, res) => {
+  const stateCookie = req.cookies?.[googleStateCookie] as string | undefined;
+  res.clearCookie(googleStateCookie, googleCookieOptions());
+  const state = typeof req.query.state === "string" ? req.query.state : "";
+  if (!stateCookie || !state || stateCookie !== state) {
+    res.redirect("/login?google=invalid_state");
+    return;
+  }
+  if (typeof req.query.error === "string") {
+    res.redirect("/login?google=cancelled");
+    return;
+  }
+  const code = typeof req.query.code === "string" ? req.query.code : "";
+  const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+  if (!code || !clientId || !clientSecret) {
+    res.redirect("/login?google=failed");
+    return;
+  }
+  try {
+    const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: googleRedirectUri(req),
+        grant_type: "authorization_code",
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!tokenResponse.ok) {
+      console.error("Google OAuth token exchange failed:", tokenResponse.status);
+      res.redirect("/login?google=failed");
+      return;
+    }
+    const token = (await tokenResponse.json()) as { access_token?: string };
+    if (!token.access_token) {
+      res.redirect("/login?google=failed");
+      return;
+    }
+    const profileResponse = await fetch(
+      "https://www.googleapis.com/oauth2/v3/userinfo",
+      {
+        headers: { Authorization: `Bearer ${token.access_token}` },
+        signal: AbortSignal.timeout(10_000),
+      },
+    );
+    if (!profileResponse.ok) {
+      console.error("Google OAuth profile request failed:", profileResponse.status);
+      res.redirect("/login?google=failed");
+      return;
+    }
+    const profile = (await profileResponse.json()) as {
+      sub?: string;
+      email?: string;
+      email_verified?: boolean;
+      name?: string;
+      picture?: string;
+    };
+    if (!profile.sub || !profile.email || profile.email_verified !== true) {
+      res.redirect("/login?google=email_unverified");
+      return;
+    }
+
+    const email = profile.email.trim().toLowerCase();
+    let user = await User.findOne({ email });
+    if (!user) {
+      user = await User.create({
+        name: profile.name?.trim().slice(0, 80) || email.slice(0, 80),
+        email,
+        ...(profile.picture ? { avatar: profile.picture } : {}),
+      });
+      try {
+        await seedStarterData(String(user._id));
+      } catch (error) {
+        await Promise.all([
+          Account.deleteMany({ userId: user._id }),
+          Category.deleteMany({ userId: user._id }),
+          User.deleteOne({ _id: user._id }),
+        ]);
+        throw error;
+      }
+    }
+    if (user.isActive === false) {
+      res.redirect("/login?google=account_deactivated");
+      return;
+    }
+    setSessionCookie(res, String(user._id));
+    res.redirect("/");
+  } catch (error) {
+    console.error("Google sign-in failed:", error);
+    res.redirect("/login?google=failed");
+  }
+});
+
 router.post("/register", async (req, res) => {
   const input = registerSchema.parse(req.body);
   const email = input.email.toLowerCase();
@@ -107,7 +245,11 @@ router.post("/login", loginAttemptLimiter, async (req, res) => {
   const user = await User.findOne({ email: input.email.toLowerCase() }).select(
     "+passwordHash",
   );
-  if (!user || !(await bcrypt.compare(input.password, user.passwordHash))) {
+  if (
+    !user ||
+    !user.passwordHash ||
+    !(await bcrypt.compare(input.password, user.passwordHash))
+  ) {
     res.status(401).json({ error: "Email hoặc mật khẩu chưa chính xác." });
     return;
   }

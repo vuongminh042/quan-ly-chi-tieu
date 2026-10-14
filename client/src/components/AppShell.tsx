@@ -2,8 +2,6 @@ import { createContext, useContext, useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   BarChart3,
-  Bell,
-  CircleHelp,
   CreditCard,
   LayoutDashboard,
   LogOut,
@@ -220,20 +218,6 @@ export function AppShell() {
                 title={darkMode ? "Chế độ sáng" : "Chế độ tối"}
               >
                 {darkMode ? <Sun size={18} /> : <Moon size={18} />}
-              </button>
-              <button
-                className="icon-button help-button"
-                aria-label="Trợ giúp"
-                title="Tất cả số tiền dùng đơn vị VND"
-              >
-                <CircleHelp size={18} />
-              </button>
-              <button
-                className="icon-button notify-button"
-                aria-label="Thông báo"
-              >
-                <Bell size={18} />
-                <i />
               </button>
               <button
                 className="button button-primary top-add"

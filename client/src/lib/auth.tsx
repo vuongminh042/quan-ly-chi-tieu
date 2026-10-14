@@ -41,14 +41,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const isDemo = !databaseAvailable;
         setDemoMode(isDemo);
         if (active) setDemo(isDemo);
-        if (signedOut) {
-          if (active) setUserState(null);
-        } else if (isDemo) {
-          if (active) setUser(DEMO_USER);
+        if (isDemo) {
+          if (active) setUser(signedOut ? null : DEMO_USER);
         } else {
           try {
             const result = await get<{ user: User }>('/auth/me');
-            if (active) setUserState(result.user);
+            if (active) setUser(result.user);
           } catch (error) {
             if (!axios.isAxiosError(error) || error.response?.status !== 401) {
               console.error('Không thể khôi phục phiên đăng nhập:', error);

@@ -19,7 +19,7 @@ const userSchema = new Schema(
     isActive: { type: Boolean, default: true, index: true },
     avatar: { type: String, maxlength: 2048 },
     avatarPublicId: { type: String, maxlength: 255 },
-    passwordHash: { type: String, required: true, select: false },
+    passwordHash: { type: String, select: false },
   },
   { timestamps: true },
 );

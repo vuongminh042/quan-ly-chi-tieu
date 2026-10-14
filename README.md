@@ -5,6 +5,7 @@ Website quản lý chi tiêu theo yêu cầu, sử dụng **MongoDB, Express, Re
 ## Tính năng
 
 - Đăng ký, đăng nhập và hồ sơ cá nhân; dữ liệu MongoDB được phân vùng theo người dùng.
+- Đăng nhập hoặc tạo tài khoản bằng Google OAuth với email đã xác minh.
 - Đăng ký không bị giới hạn bởi bộ đếm dùng chung; chỉ các lần đăng nhập thất bại lặp lại mới bị giới hạn để giảm dò mật khẩu.
 - Người dùng có thể vô hiệu hóa tài khoản trong Cài đặt; dữ liệu được giữ lại và chỉ quản trị viên mới có thể kích hoạt lại.
 - Trang quản trị giới hạn theo allowlist `ADMIN_EMAILS`; admin có thể tìm/lọc tài khoản, khôi phục tài khoản đã vô hiệu hóa và xem nhật ký thao tác.
@@ -32,6 +33,8 @@ pnpm dev
 Mở `http://localhost:3000`. Vite chạy frontend ở cổng `3000`, chuyển tiếp `/api` đến Express cổng `4000`. Trên Windows PowerShell thay `cp` bằng `Copy-Item .env.example .env`.
 
 Để bật tải ảnh đại diện, tạo/lấy **Cloud Name**, **API Key** và **API Secret** trong Cloudinary Dashboard → Settings → API Keys, điền lần lượt vào `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` và `CLOUDINARY_API_SECRET` trong `.env`, rồi khởi động lại server. Ảnh được tải trực tiếp lên Cloudinary; MongoDB chỉ lưu URL và public ID.
+
+Để bật đăng nhập Google, tạo OAuth Client ID loại **Web application** trong Google Cloud Console. Thêm URL chuyển hướng được ủy quyền `http://localhost:3000/api/auth/google/callback` khi chạy local; đặt Client ID, Client Secret và URI tương ứng vào `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` và `GOOGLE_REDIRECT_URI` trong `.env`. Khi triển khai production, thêm domain HTTPS của ứng dụng với đường dẫn `/api/auth/google/callback` vào danh sách chuyển hướng và đặt cùng URI trong biến môi trường production. Không đưa Client Secret vào frontend.
 
 Để cấp quyền quản trị, điền email của tài khoản đã đăng ký vào `ADMIN_EMAILS` trong `.env` (nhiều email phân tách bằng dấu phẩy), khởi động lại server rồi đăng nhập/tải lại ứng dụng. Chỉ email trong allowlist này truy cập được `/admin` và API quản trị.
 
