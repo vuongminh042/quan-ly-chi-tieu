@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { X } from "lucide-react";
 import { get, post, patch } from "../lib/api";
-import { isoDate, idOf } from "../lib/format";
+import { accountLabel, isoDate, idOf } from "../lib/format";
 import type {
   Account,
   Category,
@@ -19,10 +19,13 @@ function saveErrorMessage(error: unknown): string {
     if (!error.response) {
       return "Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng và thử lại.";
     }
-    return "Số dư không đủ! Vui lòng kiểm tra số dư tài khoản và thử lại.";
+    if (error.response.status >= 500) {
+      return "Máy chủ đang gặp sự cố. Vui lòng thử lại sau.";
+    }
+    return `Không thể lưu giao dịch (mã ${error.response.status}). Vui lòng kiểm tra thông tin và thử lại.`;
   }
   if (error instanceof Error) return error.message;
-  return "Số dư không đủ! Vui lòng kiểm tra số dư tài khoản và thử lại.";
+  return "Không thể lưu giao dịch. Vui lòng thử lại.";
 }
 
 export function TransactionDialog({
@@ -47,7 +50,6 @@ export function TransactionDialog({
     categoryId: initial ? idOf(initial.categoryId) : "",
     accountId: initial ? idOf(initial.accountId) : "",
     note: initial?.note ?? "",
-    paymentMethod: initial?.paymentMethod ?? "cash",
   });
   const [saving, setSaving] = useState(false);
   const showToast = useToast();
@@ -60,7 +62,6 @@ export function TransactionDialog({
       categoryId: initial ? idOf(initial.categoryId) : "",
       accountId: initial ? idOf(initial.accountId) : "",
       note: initial?.note ?? "",
-      paymentMethod: initial?.paymentMethod ?? "cash",
     });
     void Promise.all([
       get<{ items: Category[] }>("/categories"),
@@ -88,6 +89,9 @@ export function TransactionDialog({
   }, [open, initial?._id, showToast]);
   if (!open) return null;
   const options = categories.filter((item) => item.kind === kind);
+  const selectedAccountForDisplay = accounts.find(
+    (account) => account._id === form.accountId,
+  );
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     const amount = Number(form.amount.replace(/\./g, "").replace(/,/g, "."));
@@ -99,11 +103,22 @@ export function TransactionDialog({
       showToast("Hãy chọn danh mục và tài khoản.", "error");
       return;
     }
+    const selectedAccount = accounts.find(
+      (account) => account._id === form.accountId,
+    );
+    if (!selectedAccount) {
+      showToast("Tài khoản đã chọn không tồn tại. Vui lòng chọn lại.", "error");
+      return;
+    }
     const payload: TransactionInput = {
       ...form,
       kind,
       amount,
       date: new Date(`${form.date}T12:00:00`).toISOString(),
+      paymentMethod:
+        selectedAccount.kind === "bank"
+          ? "transfer"
+          : selectedAccount.kind,
     };
     setSaving(true);
     try {
@@ -239,19 +254,16 @@ export function TransactionDialog({
               />
             </label>
             <label>
-              Thanh toán
-              <select
-                value={form.paymentMethod}
-                onChange={(e) =>
-                  setForm({ ...form, paymentMethod: e.target.value })
+              Loại tài khoản
+              <input
+                value={
+                  selectedAccountForDisplay
+                    ? accountLabel(selectedAccountForDisplay.kind)
+                    : "Chọn tài khoản"
                 }
-              >
-                <option value="cash">Tiền mặt</option>
-                <option value="transfer">Chuyển khoản</option>
-                <option value="card">Thẻ</option>
-                <option value="ewallet">Ví điện tử</option>
-                <option value="other">Khác</option>
-              </select>
+                readOnly
+                aria-label="Loại tài khoản được xác định tự động"
+              />
             </label>
           </div>
           <label>

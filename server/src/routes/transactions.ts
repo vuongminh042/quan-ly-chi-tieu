@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import { Types } from 'mongoose';
 import { Account, Category } from '../models/core.js';
 import { Transaction } from '../models/finance.js';
@@ -11,13 +11,25 @@ import { buildReport, exportWorkbook } from '../services/reports.js';
 const router = Router();
 router.use(requireDatabase, requireAuth);
 
-async function validateReferences(userId: string, categoryId: string, accountId: string, kind: string): Promise<void> {
+function asyncRoute(handler: RequestHandler): RequestHandler {
+  return (req, res, next) => {
+    Promise.resolve(handler(req, res, next)).catch(next);
+  };
+}
+
+async function validateReferences(userId: string, categoryId: string, accountId: string, kind: string): Promise<'cash' | 'bank' | 'ewallet'> {
   const [category, account] = await Promise.all([
     Category.findOne({ _id: categoryId, userId, kind }).select('_id'),
-    Account.findOne({ _id: accountId, userId }).select('_id'),
+    Account.findOne({ _id: accountId, userId }).select('kind'),
   ]);
   if (!category) throw Object.assign(new Error('Danh mục không tồn tại hoặc không đúng loại giao dịch.'), { status: 400 });
   if (!account) throw Object.assign(new Error('Tài khoản tiền không tồn tại.'), { status: 400 });
+  return account.kind;
+}
+
+function paymentMethodForAccount(kind: 'cash' | 'bank' | 'ewallet'): 'cash' | 'transfer' | 'ewallet' {
+  if (kind === 'bank') return 'transfer';
+  return kind;
 }
 
 async function ensureSufficientBalance(
@@ -49,7 +61,7 @@ async function ensureSufficientBalance(
   }
 }
 
-router.get('/export.csv', async (req, res) => {
+router.get('/export.csv', asyncRoute(async (req, res) => {
   const report = await buildReport(req.userId!, req.query as Record<string, unknown>);
   const lines = [
     ['Ngày', 'Loại', 'Danh mục', 'Tài khoản', 'Ghi chú', 'Hình thức thanh toán', 'Số tiền'],
@@ -64,41 +76,45 @@ router.get('/export.csv', async (req, res) => {
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="bao-cao-thu-chi_${new Date().toISOString().slice(0, 10)}.csv"`);
   res.send(csv);
-});
+}));
 
-router.get('/export.xlsx', async (req, res) => {
+router.get('/export.xlsx', asyncRoute(async (req, res) => {
   const workbook = await exportWorkbook(req.userId!, req.query as Record<string, unknown>);
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', `attachment; filename="bao-cao-thu-chi_${new Date().toISOString().slice(0, 10)}.xlsx"`);
   await workbook.xlsx.write(res);
   res.end();
-});
+}));
 
-router.get('/', async (req, res) => {
+router.get('/', asyncRoute(async (req, res) => {
   res.json(await queryTransactions(req.userId!, req.query as Record<string, unknown>));
-});
-router.post('/', async (req, res) => {
+}));
+router.post('/', asyncRoute(async (req, res) => {
   const input = transactionSchema.parse(req.body);
-  await validateReferences(req.userId!, input.categoryId, input.accountId, input.kind);
+  const accountKind = await validateReferences(req.userId!, input.categoryId, input.accountId, input.kind);
   await ensureSufficientBalance(req.userId!, input.accountId, input.amount, input.kind);
-  const item = await Transaction.create({ ...input, userId: req.userId });
+  const item = await Transaction.create({
+    ...input,
+    paymentMethod: paymentMethodForAccount(accountKind),
+    userId: req.userId,
+  });
   const populated = await item.populate([{ path: 'categoryId', select: 'name icon color' }, { path: 'accountId', select: 'name kind color' }]);
   res.status(201).json({ item: populated });
-});
-router.get('/:id', async (req, res) => {
+}));
+router.get('/:id', asyncRoute(async (req, res) => {
   const item = await Transaction.findOne({ _id: req.params.id, userId: req.userId })
     .populate('categoryId', 'name icon color').populate('accountId', 'name kind color').lean();
   if (!item) { res.status(404).json({ error: 'Không tìm thấy giao dịch.' }); return; }
   res.json({ item });
-});
-router.patch('/:id', async (req, res) => {
+}));
+router.patch('/:id', asyncRoute(async (req, res) => {
   const input = transactionSchema.partial().parse(req.body);
   const current = await Transaction.findOne({ _id: req.params.id, userId: req.userId });
   if (!current) { res.status(404).json({ error: 'Không tìm thấy giao dịch.' }); return; }
   const kind = input.kind ?? current.kind;
   const categoryId = input.categoryId ?? String(current.categoryId);
   const accountId = input.accountId ?? String(current.accountId);
-  await validateReferences(req.userId!, categoryId, accountId, kind);
+  const accountKind = await validateReferences(req.userId!, categoryId, accountId, kind);
   await ensureSufficientBalance(
     req.userId!,
     accountId,
@@ -106,15 +122,17 @@ router.patch('/:id', async (req, res) => {
     kind,
     current._id,
   );
-  Object.assign(current, input);
+  Object.assign(current, input, {
+    paymentMethod: paymentMethodForAccount(accountKind),
+  });
   await current.save();
   const item = await current.populate([{ path: 'categoryId', select: 'name icon color' }, { path: 'accountId', select: 'name kind color' }]);
   res.json({ item });
-});
-router.delete('/:id', async (req, res) => {
+}));
+router.delete('/:id', asyncRoute(async (req, res) => {
   const item = await Transaction.findOneAndDelete({ _id: req.params.id, userId: req.userId });
   if (!item) { res.status(404).json({ error: 'Không tìm thấy giao dịch.' }); return; }
   res.status(204).end();
-});
+}));
 
 export default router;
