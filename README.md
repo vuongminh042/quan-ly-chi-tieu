@@ -5,7 +5,7 @@ Website quản lý chi tiêu theo yêu cầu, sử dụng **MongoDB, Express, Re
 ## Tính năng
 
 - Đăng ký, đăng nhập và hồ sơ cá nhân; dữ liệu MongoDB được phân vùng theo người dùng.
-- Đăng ký yêu cầu xác minh email qua SMTP trước khi được đăng nhập; email xác minh hết hạn sau 24 giờ và có thể gửi lại từ trang đăng nhập.
+- Đăng ký và đăng nhập bằng email/mật khẩu; tài khoản Google sử dụng OAuth với email đã xác minh bởi Google.
 - Đăng nhập hoặc tạo tài khoản bằng Google OAuth với email đã xác minh.
 - Phiên đăng nhập được duy trì tối đa 5 ngày bằng HttpOnly cookie; khi hết hạn, ứng dụng thông báo và tự đăng xuất.
 - Đăng ký không bị giới hạn bởi bộ đếm dùng chung; chỉ các lần đăng nhập thất bại lặp lại mới bị giới hạn để giảm dò mật khẩu.
@@ -28,7 +28,6 @@ Yêu cầu Node.js `>=20.11`, pnpm `11.25.0` và MongoDB local hoặc MongoDB At
 pnpm install
 cp .env.example .env
 # sửa MONGODB_URI và JWT_SECRET trong .env
-# cấu hình SMTP_HOST, SMTP_USER, SMTP_PASSWORD, EMAIL_FROM và APP_URL để bật xác minh email
 # cấu hình CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY và CLOUDINARY_API_SECRET để bật tải avatar
 pnpm dev
 ```
@@ -36,14 +35,6 @@ pnpm dev
 Mở `http://localhost:3000`. Vite chạy frontend ở cổng `3000`, chuyển tiếp `/api` đến Express cổng `4000`. Trên Windows PowerShell thay `cp` bằng `Copy-Item .env.example .env`.
 
 Để bật tải ảnh đại diện, tạo/lấy **Cloud Name**, **API Key** và **API Secret** trong Cloudinary Dashboard → Settings → API Keys, điền lần lượt vào `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` và `CLOUDINARY_API_SECRET` trong `.env`, rồi khởi động lại server. Ảnh được tải trực tiếp lên Cloudinary; MongoDB chỉ lưu URL và public ID.
-
-Để gửi email xác minh **thật đến hộp thư người dùng**, dùng Resend qua HTTPS hoặc SMTP. **Render Free chặn SMTP outbound trên cổng 25, 465 và 587**, nên ứng dụng trên Render Free phải dùng API email qua HTTPS, ví dụ Resend. Tạo API key Resend, xác minh domain gửi thư theo hướng dẫn của Resend, rồi cấu hình `RESEND_API_KEY` và `EMAIL_FROM` trên Render. `EMAIL_FROM` phải thuộc domain/sender đã xác minh. Khi `RESEND_API_KEY` được đặt, ứng dụng ưu tiên Resend; SMTP vẫn dùng được cho local hoặc dịch vụ hosting cho phép các cổng SMTP. Không cần để SMTP Gmail làm phương án gửi production trên Render Free.
-
-Để gửi qua Gmail SMTP khi chạy local, bật xác minh 2 bước, tạo **App password** rồi đặt `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, `SMTP_SECURE=false`, `SMTP_USER` bằng địa chỉ Gmail gửi thư, `SMTP_PASSWORD` bằng App password và `EMAIL_FROM` bằng địa chỉ người gửi được Gmail cho phép. Không dùng mật khẩu đăng nhập Gmail thông thường. Đặt `APP_URL` bằng URL ứng dụng (local: `http://localhost:3000`; production: domain HTTPS), rồi khởi động lại server. Liên kết xác minh có hiệu lực 24 giờ.
-
-Khi kiểm thử local trên cùng máy, liên kết `http://localhost:3000` có thể mở trực tiếp trên máy đó. Để mở liên kết từ điện thoại hoặc thiết bị khác, tạo HTTPS tunnel chỉ cho cổng Express local `4000` (ví dụ bằng ngrok hoặc Cloudflare Tunnel), rồi đặt URL tunnel vào `EMAIL_VERIFICATION_URL` trong `.env`. Ví dụ: `EMAIL_VERIFICATION_URL=https://<public-tunnel>`. Khi đó email vẫn gửi qua SMTP thật, còn liên kết xác minh đi tới server local và database local. Không dùng `EMAIL_VERIFICATION_URL` trỏ về production khi muốn xác minh tài khoản trong database local. Trong production có thể để trống để dùng `APP_URL`.
-
-Sau khi thay đổi cấu hình, khởi động lại API. Nếu SMTP thiếu/sai cấu hình hoặc nhà cung cấp từ chối gửi, đăng ký trả lỗi rõ ràng; tài khoản được tạo vẫn có thể yêu cầu gửi lại email từ trang đăng nhập. Đăng nhập Google tiếp tục sử dụng trạng thái email đã xác minh do Google cung cấp.
 
 Để bật đăng nhập Google, tạo OAuth Client ID loại **Web application** trong Google Cloud Console. Thêm URL chuyển hướng được ủy quyền `http://localhost:3000/api/auth/google/callback` khi chạy local; đặt Client ID, Client Secret và URI tương ứng vào `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` và `GOOGLE_REDIRECT_URI` trong `.env`. Khi triển khai production, thêm domain HTTPS của ứng dụng với đường dẫn `/api/auth/google/callback` vào danh sách chuyển hướng và đặt cùng URI trong biến môi trường production. Không đưa Client Secret vào frontend.
 

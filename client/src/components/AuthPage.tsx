@@ -64,9 +64,6 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [resendingVerification, setResendingVerification] = useState(false);
-  const [showResendVerification, setShowResendVerification] = useState(false);
-  const emailInput = useRef<HTMLInputElement>(null);
   const handledAuthNotice = useRef<string | null>(null);
   const suppressAutofill =
     (location.state as { registered?: boolean } | null)?.registered === true;
@@ -91,8 +88,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const result = params.get("google");
-    const verificationResult = params.get("verified");
-    if (!result && !verificationResult) return;
+    if (!result) return;
     if (handledAuthNotice.current === location.search) return;
     handledAuthNotice.current = location.search;
     const messages: Record<string, string> = {
@@ -104,41 +100,9 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
         "Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.",
       failed: "Không thể đăng nhập bằng Google. Vui lòng thử lại.",
     };
-    const verificationMessages: Record<string, { message: string; type: "success" | "error" }> = {
-      success: { message: "Email đã được xác minh. Bạn có thể đăng nhập.", type: "success" },
-      invalid: { message: "Liên kết xác minh không hợp lệ hoặc đã hết hạn. Hãy yêu cầu gửi email mới.", type: "error" },
-    };
-    if (result) showToast(messages[result] ?? "Không thể đăng nhập bằng Google.", "error");
-    else if (verificationResult) {
-      const message = verificationMessages[verificationResult] ?? verificationMessages.invalid;
-      showToast(message.message, message.type);
-    }
+    showToast(messages[result] ?? "Không thể đăng nhập bằng Google.", "error");
     nav(location.pathname, { replace: true });
   }, [location.pathname, location.search, nav, showToast]);
-
-  async function resendVerification() {
-    const email = emailInput.current?.value.trim().toLowerCase() ?? "";
-    if (!emailPattern.test(email)) {
-      showToast("Nhập địa chỉ email hợp lệ để gửi lại email xác minh.", "error");
-      emailInput.current?.focus();
-      return;
-    }
-    setResendingVerification(true);
-    try {
-      const result = await post<{ message: string }>("/auth/resend-verification", { email });
-      showToast(result.message, "success");
-      setShowResendVerification(false);
-    } catch (error) {
-      showToast(
-        axios.isAxiosError<{ error?: string }>(error)
-          ? error.response?.data?.error ?? "Chưa gửi được email xác minh. Vui lòng thử lại."
-          : "Chưa gửi được email xác minh. Vui lòng thử lại.",
-        "error",
-      );
-    } finally {
-      setResendingVerification(false);
-    }
-  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -173,12 +137,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
           : {}),
       });
       if (mode === "register") {
-        showToast(
-          demo
-            ? "Đăng ký thành công. Vui lòng đăng nhập để tiếp tục."
-            : result.message ?? "Đăng ký thành công. Hãy xác minh email để đăng nhập.",
-          "success",
-        );
+        showToast("Đăng ký thành công. Vui lòng đăng nhập để tiếp tục.", "success");
         nav("/login", { replace: true, state: { registered: true } });
       } else {
         if (!result.user) throw new Error("Máy chủ không trả về thông tin tài khoản.");
@@ -188,10 +147,6 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
       }
     } catch (requestError) {
       if (axios.isAxiosError<{ error?: string }>(requestError)) {
-        if (requestError.response?.data && "code" in requestError.response.data &&
-            requestError.response.data.code === "EMAIL_NOT_VERIFIED") {
-          setShowResendVerification(true);
-        }
         showToast(
           requestError.response?.data?.error ??
             "Không thể kết nối máy chủ. Vui lòng thử lại.",
@@ -292,7 +247,6 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
                 autoComplete={
                   mode === "register" || suppressAutofill ? "off" : "email"
                 }
-                ref={emailInput}
                 maxLength={254}
                 required
                 aria-invalid={!!fieldErrors.email}
@@ -353,16 +307,6 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
               <ArrowRight size={17} />
             </Button>
           </form>
-          {mode === "login" && showResendVerification && (
-            <button
-              className="text-link"
-              type="button"
-              onClick={() => void resendVerification()}
-              disabled={resendingVerification}
-            >
-              {resendingVerification ? "Đang gửi email…" : "Gửi lại email xác minh"}
-            </button>
-          )}
           {!demo && (
             <>
               <div className="auth-divider"><span>hoặc tiếp tục với</span></div>
