@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { ArrowRight, Eye, EyeOff, ShieldCheck } from "lucide-react";
@@ -64,6 +64,12 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [resendingVerification, setResendingVerification] = useState(false);
+  const [showResendVerification, setShowResendVerification] = useState(false);
+  const emailInput = useRef<HTMLInputElement>(null);
+  const handledAuthNotice = useRef<string | null>(null);
+  const suppressAutofill =
+    (location.state as { registered?: boolean } | null)?.registered === true;
 
   function clearFieldError(field: AuthField) {
     setFieldErrors((current) => {
@@ -83,8 +89,12 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   }, [demo, showToast]);
 
   useEffect(() => {
-    const result = new URLSearchParams(location.search).get("google");
-    if (!result) return;
+    const params = new URLSearchParams(location.search);
+    const result = params.get("google");
+    const verificationResult = params.get("verified");
+    if (!result && !verificationResult) return;
+    if (handledAuthNotice.current === location.search) return;
+    handledAuthNotice.current = location.search;
     const messages: Record<string, string> = {
       not_configured: "Đăng nhập Google chưa được cấu hình trên máy chủ.",
       invalid_state: "Phiên đăng nhập Google không hợp lệ. Vui lòng thử lại.",
@@ -94,9 +104,41 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
         "Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.",
       failed: "Không thể đăng nhập bằng Google. Vui lòng thử lại.",
     };
-    showToast(messages[result] ?? "Không thể đăng nhập bằng Google.", "error");
+    const verificationMessages: Record<string, { message: string; type: "success" | "error" }> = {
+      success: { message: "Email đã được xác minh. Bạn có thể đăng nhập.", type: "success" },
+      invalid: { message: "Liên kết xác minh không hợp lệ hoặc đã hết hạn. Hãy yêu cầu gửi email mới.", type: "error" },
+    };
+    if (result) showToast(messages[result] ?? "Không thể đăng nhập bằng Google.", "error");
+    else if (verificationResult) {
+      const message = verificationMessages[verificationResult] ?? verificationMessages.invalid;
+      showToast(message.message, message.type);
+    }
     nav(location.pathname, { replace: true });
   }, [location.pathname, location.search, nav, showToast]);
+
+  async function resendVerification() {
+    const email = emailInput.current?.value.trim().toLowerCase() ?? "";
+    if (!emailPattern.test(email)) {
+      showToast("Nhập địa chỉ email hợp lệ để gửi lại email xác minh.", "error");
+      emailInput.current?.focus();
+      return;
+    }
+    setResendingVerification(true);
+    try {
+      const result = await post<{ message: string }>("/auth/resend-verification", { email });
+      showToast(result.message, "success");
+      setShowResendVerification(false);
+    } catch (error) {
+      showToast(
+        axios.isAxiosError<{ error?: string }>(error)
+          ? error.response?.data?.error ?? "Chưa gửi được email xác minh. Vui lòng thử lại."
+          : "Chưa gửi được email xác minh. Vui lòng thử lại.",
+        "error",
+      );
+    } finally {
+      setResendingVerification(false);
+    }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -117,7 +159,11 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
 
     setBusy(true);
     try {
-      const result = await post<{ user: AuthUser }>(`/auth/${mode}`, {
+      const result = await post<{
+        user?: AuthUser;
+        message?: string;
+        sessionExpiresAt?: number;
+      }>(`/auth/${mode}`, {
         ...payload,
         ...(typeof payload.email === "string"
           ? { email: payload.email.trim().toLowerCase() }
@@ -128,17 +174,24 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
       });
       if (mode === "register") {
         showToast(
-          "Đăng ký thành công. Vui lòng đăng nhập để tiếp tục.",
+          demo
+            ? "Đăng ký thành công. Vui lòng đăng nhập để tiếp tục."
+            : result.message ?? "Đăng ký thành công. Hãy xác minh email để đăng nhập.",
           "success",
         );
-        nav("/login", { replace: true });
+        nav("/login", { replace: true, state: { registered: true } });
       } else {
+        if (!result.user) throw new Error("Máy chủ không trả về thông tin tài khoản.");
         showToast("Đăng nhập thành công.", "success");
-        setUser(result.user);
+        setUser(result.user, result.sessionExpiresAt);
         nav("/", { replace: true });
       }
     } catch (requestError) {
       if (axios.isAxiosError<{ error?: string }>(requestError)) {
+        if (requestError.response?.data && "code" in requestError.response.data &&
+            requestError.response.data.code === "EMAIL_NOT_VERIFIED") {
+          setShowResendVerification(true);
+        }
         showToast(
           requestError.response?.data?.error ??
             "Không thể kết nối máy chủ. Vui lòng thử lại.",
@@ -203,7 +256,12 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
               ? "Nhập thông tin để tiếp tục theo dõi tài chính."
               : "Tài khoản của bạn sẽ có không gian dữ liệu riêng."}
           </p>
-          <form onSubmit={submit} className="form-stack" noValidate>
+          <form
+            onSubmit={submit}
+            className="form-stack"
+            noValidate
+            autoComplete={suppressAutofill ? "off" : undefined}
+          >
             {mode === "register" && (
               <label>
                 Họ và Tên
@@ -231,7 +289,10 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
                 name="email"
                 type="email"
                 placeholder="ban@email.com"
-                autoComplete="email"
+                autoComplete={
+                  mode === "register" || suppressAutofill ? "off" : "email"
+                }
+                ref={emailInput}
                 maxLength={254}
                 required
                 aria-invalid={!!fieldErrors.email}
@@ -253,7 +314,11 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
                   minLength={mode === "register" ? 8 : 1}
                   maxLength={128}
                   autoComplete={
-                    mode === "login" ? "current-password" : "new-password"
+                    suppressAutofill
+                      ? "new-password"
+                      : mode === "login"
+                        ? "current-password"
+                        : "new-password"
                   }
                   placeholder={
                     mode === "register" ? "Từ 8 đến 128 ký tự" : "Nhập mật khẩu"
@@ -288,6 +353,16 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
               <ArrowRight size={17} />
             </Button>
           </form>
+          {mode === "login" && showResendVerification && (
+            <button
+              className="text-link"
+              type="button"
+              onClick={() => void resendVerification()}
+              disabled={resendingVerification}
+            >
+              {resendingVerification ? "Đang gửi email…" : "Gửi lại email xác minh"}
+            </button>
+          )}
           {!demo && (
             <>
               <div className="auth-divider"><span>hoặc tiếp tục với</span></div>

@@ -17,8 +17,8 @@ const Settings=lazy(()=>import('./pages/Settings'));
 const Admin=lazy(()=>import('./pages/Admin'));
 
 function AppRoutes(){const {user,ready}=useAuth();if(!ready)return <Loading/>;return <Suspense fallback={<Loading/>}><Routes>
-  <Route path="/login" element={user?<Navigate to="/" replace/>:<AuthPage mode="login"/>}/>
-  <Route path="/register" element={user?<Navigate to="/" replace/>:<AuthPage mode="register"/>}/>
+  <Route path="/login" element={user?<Navigate to="/" replace/>:<AuthPage key="login" mode="login"/>}/>
+  <Route path="/register" element={user?<Navigate to="/" replace/>:<AuthPage key="register" mode="register"/>}/>
   <Route element={user?<AppShell/>:<Navigate to="/login" replace/>}>
     <Route path="/" element={<Dashboard/>}/><Route path="/transactions" element={<Transactions/>}/><Route path="/budgets" element={<Budgets/>}/><Route path="/goals" element={<Goals/>}/><Route path="/accounts" element={<Accounts/>}/><Route path="/reports" element={<Reports/>}/><Route path="/settings" element={<Settings/>}/><Route path="/admin" element={user?.isAdmin?<Admin/>:<Navigate to="/" replace/>}/>
   </Route>

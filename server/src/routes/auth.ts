@@ -2,7 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { User, Account, Category } from "../models/core.js";
 import {
   requireAuth,
@@ -12,6 +12,11 @@ import {
 } from "../middleware/auth.js";
 import { requireDatabase } from "../middleware/http.js";
 import { loginSchema, registerSchema } from "./validation.js";
+import {
+  createEmailVerificationToken,
+  isEmailDeliveryConfigured,
+  sendEmailVerification,
+} from "../services/emailVerification.js";
 
 const router = Router();
 router.use(requireDatabase);
@@ -26,6 +31,31 @@ const loginAttemptLimiter = rateLimit({
     error: "Có quá nhiều lần đăng nhập không thành công từ kết nối này. Vui lòng thử lại sau ít phút.",
   },
 });
+const registrationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: {
+    error: "Bạn đã đăng ký quá nhiều lần từ kết nối này. Vui lòng thử lại sau.",
+  },
+});
+const resendVerificationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 3,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: {
+    error: "Bạn đã yêu cầu gửi email quá nhiều lần. Vui lòng thử lại sau ít phút.",
+  },
+});
+
+function verificationUnavailable(res: import("express").Response): void {
+  res.status(503).json({
+    error: "Chức năng xác minh email chưa được cấu hình. Vui lòng liên hệ quản trị viên.",
+    code: "EMAIL_DELIVERY_UNAVAILABLE",
+  });
+}
 
 async function seedStarterData(userId: string): Promise<void> {
   await Promise.all([
@@ -196,6 +226,18 @@ router.get("/google/callback", async (req, res) => {
         throw error;
       }
     }
+    if (user.emailVerified === false) {
+      await User.updateOne(
+        { _id: user._id },
+        {
+          $set: { emailVerified: true },
+          $unset: {
+            emailVerificationTokenHash: 1,
+            emailVerificationExpiresAt: 1,
+          },
+        },
+      );
+    }
     if (user.isActive === false) {
       res.redirect("/login?google=account_deactivated");
       return;
@@ -208,15 +250,27 @@ router.get("/google/callback", async (req, res) => {
   }
 });
 
-router.post("/register", async (req, res) => {
+router.post("/register", registrationLimiter, async (req, res) => {
   const input = registerSchema.parse(req.body);
   const email = input.email.toLowerCase();
+  if (!isEmailDeliveryConfigured()) {
+    verificationUnavailable(res);
+    return;
+  }
   if (await User.exists({ email })) {
     res.status(409).json({ error: "Email này đã được sử dụng." });
     return;
   }
   const passwordHash = await bcrypt.hash(input.password, 12);
-  const user = await User.create({ name: input.name, email, passwordHash });
+  const verification = createEmailVerificationToken();
+  const user = await User.create({
+    name: input.name,
+    email,
+    passwordHash,
+    emailVerified: false,
+    emailVerificationTokenHash: verification.tokenHash,
+    emailVerificationExpiresAt: verification.expiresAt,
+  });
   try {
     await seedStarterData(String(user._id));
   } catch (error) {
@@ -227,17 +281,82 @@ router.post("/register", async (req, res) => {
     await User.deleteOne({ _id: user._id });
     throw error;
   }
-  res
-    .status(201)
-    .json({
-      user: {
-        id: String(user._id),
-        name: user.name,
-        email: user.email,
-        avatar: user.avatar,
-        isAdmin: isAdminEmail(user.email),
-      },
+  try {
+    await sendEmailVerification(user.email, user.name, verification.token);
+  } catch (error) {
+    console.error("Không thể gửi email xác minh:", error);
+    res.status(503).json({
+      error: "Tài khoản đã được tạo nhưng chưa gửi được email xác minh. Hãy đăng nhập để yêu cầu gửi lại.",
+      code: "VERIFICATION_EMAIL_FAILED",
     });
+    return;
+  }
+  res.status(201).json({
+    message: "Tài khoản đã được tạo. Vui lòng xác nhận email để đăng nhập.",
+  });
+});
+
+router.post("/resend-verification", resendVerificationLimiter, async (req, res) => {
+  const { email } = z.object({ email: z.string().trim().email().max(254) }).parse(req.body);
+  if (!isEmailDeliveryConfigured()) {
+    verificationUnavailable(res);
+    return;
+  }
+  const user = await User.findOne({ email: email.toLowerCase() });
+  if (user && user.emailVerified === false) {
+    const verification = createEmailVerificationToken();
+    await User.updateOne(
+      { _id: user._id, emailVerified: false },
+      {
+        $set: {
+          emailVerificationTokenHash: verification.tokenHash,
+          emailVerificationExpiresAt: verification.expiresAt,
+        },
+      },
+    );
+    try {
+      await sendEmailVerification(user.email, user.name, verification.token);
+    } catch (error) {
+      console.error("Không thể gửi lại email xác minh:", error);
+      res.status(503).json({
+        error: "Chưa gửi được email xác minh. Vui lòng thử lại sau.",
+        code: "VERIFICATION_EMAIL_FAILED",
+      });
+      return;
+    }
+  }
+  res.json({
+    message: "Nếu địa chỉ này có tài khoản chưa xác minh, email xác nhận sẽ được gửi.",
+  });
+});
+
+router.get("/verify-email", async (req, res, next) => {
+  try {
+    const token = typeof req.query.token === "string" ? req.query.token : "";
+    if (!/^[a-f0-9]{64}$/i.test(token)) {
+      res.redirect("/login?verified=invalid");
+      return;
+    }
+    const tokenHash = createHash("sha256").update(token).digest("hex");
+    const user = await User.findOneAndUpdate(
+      {
+        emailVerificationTokenHash: tokenHash,
+        emailVerificationExpiresAt: { $gt: new Date() },
+        emailVerified: false,
+      },
+      {
+        $set: { emailVerified: true },
+        $unset: {
+          emailVerificationTokenHash: 1,
+          emailVerificationExpiresAt: 1,
+        },
+      },
+      { new: true },
+    );
+    res.redirect(user ? "/login?verified=success" : "/login?verified=invalid");
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.post("/login", loginAttemptLimiter, async (req, res) => {
@@ -245,12 +364,19 @@ router.post("/login", loginAttemptLimiter, async (req, res) => {
   const user = await User.findOne({ email: input.email.toLowerCase() }).select(
     "+passwordHash",
   );
-  if (
-    !user ||
-    !user.passwordHash ||
-    !(await bcrypt.compare(input.password, user.passwordHash))
-  ) {
+  if (!user) {
+    res.status(404).json({ error: "Tài khoản chưa được đăng ký." });
+    return;
+  }
+  if (!user.passwordHash || !(await bcrypt.compare(input.password, user.passwordHash))) {
     res.status(401).json({ error: "Email hoặc mật khẩu chưa chính xác." });
+    return;
+  }
+  if (user.emailVerified === false) {
+    res.status(403).json({
+      error: "Email của bạn chưa được xác minh. Hãy xác nhận email trước khi đăng nhập.",
+      code: "EMAIL_NOT_VERIFIED",
+    });
     return;
   }
   if (user.isActive === false) {
@@ -263,8 +389,9 @@ router.post("/login", loginAttemptLimiter, async (req, res) => {
       });
     return;
   }
-  setSessionCookie(res, String(user._id));
+  const sessionExpiresAt = setSessionCookie(res, String(user._id));
   res.json({
+    sessionExpiresAt,
     user: {
       id: String(user._id),
       name: user.name,
@@ -288,6 +415,7 @@ router.get("/me", requireAuth, async (req, res) => {
     return;
   }
   res.json({
+    sessionExpiresAt: req.sessionExpiresAt,
     user: {
       id: String(user._id),
       name: user.name,

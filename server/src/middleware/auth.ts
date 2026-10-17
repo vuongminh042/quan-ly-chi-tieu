@@ -4,6 +4,7 @@ import { User } from "../models/core.js";
 
 const tokenCookie = "chitieu_session";
 const defaultDevSecret = "development-only-change-me";
+const sessionDurationSeconds = 5 * 24 * 60 * 60;
 export function isAdminEmail(email: string): boolean {
   const configuredEmails = (process.env.ADMIN_EMAILS ?? "")
     .split(",")
@@ -20,17 +21,23 @@ export function jwtSecret(): string {
   return defaultDevSecret;
 }
 
-export function setSessionCookie(res: Response, userId: string): void {
+export function setSessionCookie(res: Response, userId: string): number {
   const sameSite = process.env.COOKIE_SAME_SITE === "lax" ? "lax" : "none";
   const secure = process.env.COOKIE_SECURE === "false" ? false : true;
-  const token = jwt.sign({ sub: userId }, jwtSecret(), { expiresIn: "7d" });
+  const expiresAt = Math.floor(Date.now() / 1000 + sessionDurationSeconds) * 1000;
+  const token = jwt.sign(
+    { sub: userId },
+    jwtSecret(),
+    { expiresIn: sessionDurationSeconds },
+  );
   res.cookie(tokenCookie, token, {
     httpOnly: true,
     secure,
     sameSite,
     path: "/",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    maxAge: sessionDurationSeconds * 1000,
   });
+  return expiresAt;
 }
 
 export function clearSessionCookie(res: Response): void {
@@ -57,8 +64,26 @@ export async function requireAuth(
   let userId: string;
   try {
     const payload = jwt.verify(token, jwtSecret()) as jwt.JwtPayload;
-    if (typeof payload.sub !== "string") throw new Error("Invalid session");
+    if (
+      typeof payload.sub !== "string" ||
+      typeof payload.iat !== "number" ||
+      typeof payload.exp !== "number"
+    )
+      throw new Error("Invalid session");
     userId = payload.sub;
+    const expiresAt = Math.min(
+      payload.exp,
+      payload.iat + sessionDurationSeconds,
+    ) * 1000;
+    if (expiresAt <= Date.now()) {
+      clearSessionCookie(res);
+      res.status(401).json({
+        error: "Phiên đăng nhập của bạn đã hết hạn.",
+        code: "SESSION_EXPIRED",
+      });
+      return;
+    }
+    req.sessionExpiresAt = expiresAt;
   } catch {
     clearSessionCookie(res);
     res

@@ -403,7 +403,7 @@ export default function Settings() {
             <div className="privacy-divider" />
             <div>
               <span>Phiên đăng nhập</span>
-              <strong>HttpOnly cookie · 7 ngày</strong>
+              <strong>HttpOnly cookie · 5 ngày</strong>
             </div>
             <div>
               <span>Chế độ dữ liệu</span>
