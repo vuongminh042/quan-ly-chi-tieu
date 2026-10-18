@@ -118,7 +118,6 @@ export default function Dashboard() {
           amount={totalBalance}
           tone="green"
           icon={<Wallet size={18} />}
-          delta={`${accounts.length} tài khoản đang theo dõi`}
         />
         <StatCard
           label="Tổng thu · 6 tháng"
