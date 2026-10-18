@@ -12,6 +12,7 @@ import budgetRoutes from './routes/budgets.js';
 import goalRoutes from './routes/goals.js';
 import reportRoutes from './routes/reports.js';
 import adminRoutes from './routes/admin.js';
+import supportRoutes from './routes/support.js';
 import { databaseReady } from './config/database.js';
 import { apiErrorHandler, notFound } from './middleware/http.js';
 
@@ -32,6 +33,7 @@ app.use('/api/budgets', budgetRoutes);
 app.use('/api/goals', goalRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/support', supportRoutes);
 app.use('/api', notFound);
 
 if (process.env.NODE_ENV === 'production') {

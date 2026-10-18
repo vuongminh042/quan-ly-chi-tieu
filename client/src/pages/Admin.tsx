@@ -5,6 +5,7 @@ import { get, post } from '../lib/api';
 import type { AppOutlet } from '../components/AppShell';
 import { useConfirm } from '../components/ConfirmDialog';
 import { Button, EmptyState, PageTitle, Panel } from '../components/UI';
+import { AdminSupportInbox } from '../components/AdminSupportInbox';
 
 type ManagedUser = { id: string; name: string; email: string; avatar?: string; isActive: boolean; createdAt: string };
 type UserList = { items: ManagedUser[]; pagination: { page: number; limit: number; total: number; totalPages: number } };
@@ -82,6 +83,7 @@ export default function Admin() {
         title="Quản trị tài khoản."
         description="Tra cứu trạng thái tài khoản và hỗ trợ khôi phục mà không thay đổi dữ liệu tài chính."
       />
+      <AdminSupportInbox />
       <div className="admin-summary">
         <span><Users size={18} /> Tài khoản phù hợp</span>
         <strong>{users.pagination.total}</strong>

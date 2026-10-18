@@ -11,6 +11,7 @@ Website quản lý chi tiêu theo yêu cầu, sử dụng **MongoDB, Express, Re
 - Đăng ký không bị giới hạn bởi bộ đếm dùng chung; chỉ các lần đăng nhập thất bại lặp lại mới bị giới hạn để giảm dò mật khẩu.
 - Người dùng có thể vô hiệu hóa tài khoản trong Cài đặt; dữ liệu được giữ lại và chỉ quản trị viên mới có thể kích hoạt lại.
 - Trang quản trị giới hạn theo allowlist `ADMIN_EMAILS`; admin có thể tìm/lọc tài khoản, khôi phục tài khoản đã vô hiệu hóa và xem nhật ký thao tác.
+- Khách có thể liên hệ hỗ trợ qua chat ngay cả khi chưa đăng nhập; mỗi tab có phiên chat ẩn danh riêng để các khách khác nhau không dùng chung hội thoại. Quản trị viên nhận và trả lời tin nhắn realtime trong hộp thư quản trị, với trạng thái đang soạn/đã gửi/đã nhận/đã xem, trạng thái online/offline tài khoản và bộ đếm tin chưa đọc ở cả hai phía. Đóng/mở hội thoại được đồng bộ realtime tới khách. Tin nhắn có chứa mật khẩu, mã xác thực hoặc thông tin thẻ/tài khoản tài chính sẽ bị chặn ở giao diện và API. Quản trị viên có thể khôi phục và chuyển hội thoại sang tài khoản đã đăng ký trùng email; token chat ẩn danh bị từ chối sau khi chuyển, còn chủ tài khoản đăng nhập có thể tiếp tục hội thoại tại widget trong ứng dụng. Admin có thể xóa vĩnh viễn toàn bộ một hội thoại và lịch sử tin nhắn sau khi xác nhận. Xác minh OTP để nhận lại hội thoại từ thiết bị/phiên khách khác chưa được bật; cần cấu hình dịch vụ gửi email trước khi triển khai luồng này.
 - Ảnh đại diện tải trực tiếp lên Cloudinary; MongoDB chỉ lưu URL và mã ảnh.
 - Ghi nhận, sửa, xóa giao dịch thu/chi; tìm kiếm, lọc theo ngày/danh mục/tài khoản, sắp xếp và phân trang.
 - Quản lý tiền mặt, ngân hàng, ví điện tử và danh mục; số dư tài khoản tính từ số dư ban đầu và các giao dịch.
@@ -32,7 +33,7 @@ cp .env.example .env
 pnpm dev
 ```
 
-Mở `http://localhost:3000`. Vite chạy frontend ở cổng `3000`, chuyển tiếp `/api` đến Express cổng `4000`. Trên Windows PowerShell thay `cp` bằng `Copy-Item .env.example .env`.
+Mở `http://localhost:3000`. Vite chạy frontend ở cổng `3000`, chuyển tiếp `/api` và kết nối Socket.IO `/socket.io` đến Express cổng `4000`. Khi triển khai, reverse proxy cần cho phép nâng cấp kết nối WebSocket tới cùng máy chủ ứng dụng. Trên Windows PowerShell thay `cp` bằng `Copy-Item .env.example .env`.
 
 Để bật tải ảnh đại diện, tạo/lấy **Cloud Name**, **API Key** và **API Secret** trong Cloudinary Dashboard → Settings → API Keys, điền lần lượt vào `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` và `CLOUDINARY_API_SECRET` trong `.env`, rồi khởi động lại server. Ảnh được tải trực tiếp lên Cloudinary; MongoDB chỉ lưu URL và public ID.
 
