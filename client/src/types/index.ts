@@ -8,4 +8,4 @@ export type Budget = { _id: string; period: string; amount: number; spent: numbe
 export type Goal = { _id: string; name: string; targetAmount: number; savedAmount: number; deadline?: string; icon: string; color: string };
 export type TransactionInput = { kind: Kind; amount: number; date: string; categoryId: string; accountId: string; note: string; paymentMethod: string };
 export type Report = { totalIncome: number; totalExpense: number; net: number; transactionCount: number; categories: { name: string; kind: Kind; amount: number; color: string }[]; accounts: { name: string; income: number; expense: number }[]; monthly: { month: string; label: string; income: number; expense: number }[]; trend?: { period: string; label: string; income: number; expense: number }[] };
-export type PageResult<T> = { items: T[]; pagination: { page: number; limit: number; total: number; totalPages: number } };
+export type PageResult<T> = { items: T[]; pagination: { page: number; limit: number; total: number; totalPages: number }; totals?: { income: number; expense: number } };

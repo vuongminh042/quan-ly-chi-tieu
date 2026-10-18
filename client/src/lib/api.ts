@@ -44,7 +44,14 @@ function demoRequest(method: string, path: string, data?: Record<string, unknown
         return (!params.kind || t.kind === params.kind) && (!params.categoryId || categoryId === params.categoryId) && (!params.accountId || accountId === params.accountId) && (!params.from || date >= String(params.from)) && (!params.to || date <= String(params.to)) && (!params.search || `${t.note} ${store.categories.find(c => c._id === categoryId)?.name ?? ''}`.toLowerCase().includes(String(params.search).toLowerCase()));
       }).sort((a, b) => params.sort === 'oldest' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date));
       const page = Math.max(1, Number(params.page ?? 1)); const limit = Math.max(1, Number(params.limit ?? 10)); const total = rows.length;
-      return { items: rows.slice((page - 1) * limit, page * limit), pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+      return {
+        items: rows.slice((page - 1) * limit, page * limit),
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+        totals: rows.reduce((sum, row) => {
+          sum[row.kind] += row.amount;
+          return sum;
+        }, { income: 0, expense: 0 }),
+      };
     }
     if (method === 'POST' && data) {
       ensureDemoBalance(String(data.accountId ?? ''), Number(data.amount), data.kind);
