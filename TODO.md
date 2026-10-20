@@ -6,13 +6,12 @@
 - Kết nối MongoDB qua biến môi trường `MONGODB_URI`; không dùng database MySQL của hạ tầng thay cho MongoDB.
 
 ## 2. Giao dịch, danh mục và tài khoản tiền
-- Trang tổng quan hiển thị số dư, tổng thu, tổng chi, ngân sách và các biến động tài chính gần đây.
+- Trang tổng quan hiển thị số dư, tổng thu, tổng chi và các biến động tài chính gần đây.
 - Thêm, sửa, xóa và xem chi tiết giao dịch thu/chi với số tiền, ngày, danh mục, tài khoản, ghi chú và hình thức thanh toán.
 - Quản lý danh mục thu/chi và các tài khoản tiền như tiền mặt, ngân hàng, ví điện tử; tự động cập nhật số dư theo giao dịch.
 - Tìm kiếm, lọc, sắp xếp và phân trang lịch sử giao dịch.
 
-## 3. Ngân sách và mục tiêu tiết kiệm
-- Thiết lập ngân sách theo danh mục và khoảng thời gian, đồng thời trực quan hóa mức đã chi so với hạn mức.
+## 3. Mục tiêu tiết kiệm
 - Tạo và theo dõi mục tiêu tiết kiệm, gồm số tiền mục tiêu, tiến độ đóng góp và thời hạn hoàn thành.
 
 ## 4. Báo cáo, biểu đồ và xuất tệp

@@ -2,15 +2,14 @@
 
 ## Mục tiêu và phạm vi
 
-Xây dựng website quản lý tài chính cá nhân bằng **MERN Stack**: React (TypeScript), Node.js, Express và MongoDB (Mongoose). Mọi dữ liệu riêng tư được truy vấn theo người dùng đã đăng nhập. Hỗ trợ quản lý thu/chi, tài khoản tiền, danh mục, ngân sách, mục tiêu tiết kiệm, phân tích và xuất báo cáo. Mở rộng theo yêu cầu mới nhất: biểu đồ thống kê trực quan và xuất báo cáo thu–chi dạng Excel. Kèm hướng dẫn cài đặt, thiết lập MongoDB, cấu hình biến môi trường và chạy trên máy tính cá nhân.
+Xây dựng website quản lý tài chính cá nhân bằng **MERN Stack**: React (TypeScript), Node.js, Express và MongoDB (Mongoose). Mọi dữ liệu riêng tư được truy vấn theo người dùng đã đăng nhập. Hỗ trợ quản lý thu/chi, tài khoản tiền, danh mục, mục tiêu tiết kiệm, phân tích và xuất báo cáo. Mở rộng theo yêu cầu mới nhất: biểu đồ thống kê trực quan và xuất báo cáo thu–chi dạng Excel. Kèm hướng dẫn cài đặt, thiết lập MongoDB, cấu hình biến môi trường và chạy trên máy tính cá nhân.
 
 ### Tính năng sản phẩm
 
 - Đăng ký, đăng nhập, đăng xuất, quản lý hồ sơ; tách dữ liệu theo tài khoản người dùng.
-- Trang tổng quan số dư, thu, chi, ngân sách và giao dịch gần đây.
+- Trang tổng quan số dư, thu, chi và giao dịch gần đây.
 - Tạo, sửa, xóa, xem giao dịch thu/chi với số tiền, ngày, danh mục, tài khoản, ghi chú và hình thức thanh toán.
 - Quản lý danh mục và tài khoản tiền mặt/ngân hàng/ví điện tử; số dư được tính từ số dư đầu kỳ và các giao dịch.
-- Ngân sách theo danh mục/thời gian với tiến độ chi tiêu.
 - Mục tiêu tiết kiệm, số tiền đích, đóng góp, tiến độ và hạn hoàn thành.
 - Báo cáo và biểu đồ theo kỳ, danh mục, tài khoản; so sánh thu–chi.
 - Tìm kiếm, lọc, sắp xếp, phân trang; xuất CSV và Excel (.xlsx).
@@ -34,7 +33,7 @@ chitieu/
 ├── client/
 │   ├── src/
 │   │   ├── components/       # Thành phần dùng chung, biểu mẫu, khung điều hướng
-│   │   ├── pages/            # Tổng quan, giao dịch, ngân sách, mục tiêu, tài khoản, báo cáo
+│   │   ├── pages/            # Tổng quan, giao dịch, mục tiêu, tài khoản, báo cáo
 │   │   ├── lib/              # API client, định dạng tiền/ngày, dữ liệu xem thử
 │   │   ├── types/            # Kiểu dữ liệu phía trình duyệt
 │   │   ├── App.tsx            # Route và khởi tạo phiên
@@ -47,7 +46,7 @@ chitieu/
 │   └── src/
 │       ├── config/            # Kết nối MongoDB và cấu hình môi trường
 │       ├── middleware/        # Xác thực, kiểm tra lỗi, giới hạn request
-│       ├── models/            # User, Account, Category, Transaction, Budget, Goal
+│       ├── models/            # User, Account, Category, Transaction, Goal
 │       ├── routes/            # REST endpoints
 │       ├── services/          # Nghiệp vụ tổng hợp và xuất báo cáo
 │       ├── app.ts             # Express app

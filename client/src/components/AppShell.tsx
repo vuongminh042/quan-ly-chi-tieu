@@ -1,7 +1,6 @@
 import { createContext, useContext, useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
-  BarChart3,
   CreditCard,
   LayoutDashboard,
   LogOut,
@@ -43,7 +42,6 @@ export const useFinanceUI = () => {
 const links = [
   { to: "/", label: "Tổng quan", icon: LayoutDashboard },
   { to: "/transactions", label: "Giao dịch", icon: CreditCard },
-  { to: "/budgets", label: "Ngân sách", icon: BarChart3 },
   { to: "/goals", label: "Mục tiêu", icon: Target },
   { to: "/accounts", label: "Tài khoản", icon: Wallet },
   { to: "/reports", label: "Báo cáo", icon: ChartNoAxesCombined },
@@ -52,7 +50,6 @@ const links = [
 const titles: Record<string, string> = {
   "/": "Tổng quan",
   "/transactions": "Giao dịch",
-  "/budgets": "Ngân sách",
   "/goals": "Mục tiêu tiết kiệm",
   "/accounts": "Tài khoản của tôi",
   "/reports": "Báo cáo thu chi",

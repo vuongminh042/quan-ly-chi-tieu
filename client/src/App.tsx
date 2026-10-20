@@ -11,7 +11,6 @@ import { ConfirmProvider } from './components/ConfirmDialog';
 
 const Dashboard=lazy(()=>import('./pages/Dashboard'));
 const Transactions=lazy(()=>import('./pages/Transactions'));
-const Budgets=lazy(()=>import('./pages/Budgets'));
 const Goals=lazy(()=>import('./pages/Goals'));
 const Accounts=lazy(()=>import('./pages/Accounts'));
 const Reports=lazy(()=>import('./pages/Reports'));
@@ -29,7 +28,6 @@ function AppRoutes() {
         <Route element={user ? <AppShell /> : <Navigate to="/login" replace />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/transactions" element={<Transactions />} />
-          <Route path="/budgets" element={<Budgets />} />
           <Route path="/goals" element={<Goals />} />
           <Route path="/accounts" element={<Accounts />} />
           <Route path="/reports" element={<Reports />} />

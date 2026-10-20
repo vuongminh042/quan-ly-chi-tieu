@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { Category } from '../models/core.js';
-import { Budget, Transaction } from '../models/finance.js';
+import { Transaction } from '../models/finance.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireDatabase } from '../middleware/http.js';
 import { categorySchema } from './validation.js';
@@ -24,8 +24,8 @@ router.patch('/:id', async (req, res) => {
   res.json({ item });
 });
 router.delete('/:id', async (req, res) => {
-  if (await Transaction.exists({ userId: req.userId, categoryId: req.params.id }) || await Budget.exists({ userId: req.userId, categoryId: req.params.id })) {
-    res.status(409).json({ error: 'Danh mục đang được sử dụng trong giao dịch hoặc ngân sách.' });
+  if (await Transaction.exists({ userId: req.userId, categoryId: req.params.id })) {
+    res.status(409).json({ error: 'Danh mục đang được sử dụng trong giao dịch.' });
     return;
   }
   const item = await Category.findOneAndDelete({ _id: req.params.id, userId: req.userId });

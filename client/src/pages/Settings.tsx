@@ -213,7 +213,7 @@ export default function Settings() {
       !(await confirm({
         title: "Xóa danh mục?",
         message:
-          "Danh mục đang được giao dịch hoặc ngân sách sử dụng sẽ không thể xóa.",
+          "Danh mục đang được giao dịch sử dụng sẽ không thể xóa.",
       }))
     )
       return;
@@ -397,7 +397,7 @@ export default function Settings() {
             </div>
             <h2>Dữ liệu thuộc về bạn.</h2>
             <p>
-              Giao dịch, ngân sách và mục tiêu luôn được lọc theo tài khoản đang
+              Giao dịch và mục tiêu luôn được lọc theo tài khoản đang
               đăng nhập.
             </p>
             <div className="privacy-divider" />

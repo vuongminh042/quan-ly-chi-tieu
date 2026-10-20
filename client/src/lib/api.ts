@@ -1,7 +1,6 @@
 import axios, { type AxiosRequestConfig } from 'axios';
 import type { DemoStore } from './demo';
 import { demoReport, readStore, writeStore } from './demo';
-import { monthKey } from './format';
 
 export const http = axios.create({ baseURL: '/api', withCredentials: true, headers: { 'Content-Type': 'application/json' } });
 let demoMode = false;
@@ -79,17 +78,13 @@ function demoRequest(method: string, path: string, data?: Record<string, unknown
     }
     if (method === 'DELETE') { store.transactions.splice(index, 1); writeStore(store); return {}; }
   }
-  const collectionName = clean.split('/')[0] as keyof Pick<DemoStore, 'accounts' | 'categories' | 'budgets' | 'goals'>;
-  const allowed: (keyof Pick<DemoStore, 'accounts' | 'categories' | 'budgets' | 'goals'>)[] = ['accounts', 'categories', 'budgets', 'goals'];
+  const collectionName = clean.split('/')[0] as keyof Pick<DemoStore, 'accounts' | 'categories' | 'goals'>;
+  const allowed: (keyof Pick<DemoStore, 'accounts' | 'categories' | 'goals'>)[] = ['accounts', 'categories', 'goals'];
   if (allowed.includes(collectionName)) {
     const collection = store[collectionName] as any[];
     if (!clean.includes('/')) {
       if (method === 'GET') {
-        const items = collectionName === 'budgets' ? collection.filter(item => item.period === String(params.period ?? monthKey())).map(item => {
-          const categoryId = getId(item.categoryId);
-          const spent = store.transactions.filter(t => t.kind === 'expense' && getId(t.categoryId) === categoryId && t.date.slice(0, 7) === item.period).reduce((sum, t) => sum + t.amount, 0);
-          return { ...item, spent };
-        }) : collectionName === 'accounts' ? collection.map(item => {
+        const items = collectionName === 'accounts' ? collection.map(item => {
           const movement = store.transactions.filter(t => getId(t.accountId) === item._id).reduce((sum, t) => sum + (t.kind === 'income' ? t.amount : -t.amount), 0);
           return { ...item, balance: item.openingBalance + movement };
         }) : collection;
@@ -97,7 +92,6 @@ function demoRequest(method: string, path: string, data?: Record<string, unknown
       }
       if (method === 'POST' && data) {
         const item: any = { ...data, _id: id() };
-        if (collectionName === 'budgets') item.spent = 0;
         if (collectionName === 'goals') item.savedAmount = 0;
         collection.push(item); writeStore(store); return { item };
       }

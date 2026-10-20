@@ -1,5 +1,4 @@
-import type { Account, Budget, Category, Goal, Kind, Report, Transaction, User } from '../types';
-import { monthKey } from './format';
+import type { Account, Category, Goal, Kind, Report, Transaction, User } from '../types';
 
 const categories: Category[] = [
   { _id: 'c-food', name: 'Ăn uống', kind: 'expense', icon: 'utensils', color: '#ef8d64' },
@@ -42,23 +41,15 @@ function createTransactions(): Transaction[] {
   return rows.sort((a, b) => b.date.localeCompare(a.date));
 }
 
-export type DemoStore = { categories: Category[]; accounts: Account[]; transactions: Transaction[]; budgets: Budget[]; goals: Goal[]; user: User };
+export type DemoStore = { categories: Category[]; accounts: Account[]; transactions: Transaction[]; goals: Goal[]; user: User };
 const demoUser: User = { id: 'demo-user', name: 'Linh Nguyễn', email: 'linh@example.com' };
-const current = monthKey();
 const defaults: DemoStore = {
   categories, accounts, transactions: createTransactions(),
-  budgets: [
-    { _id: 'b-food', period: current, amount: 4500000, spent: 0, categoryId: 'c-food' },
-    { _id: 'b-home', period: current, amount: 7500000, spent: 0, categoryId: 'c-home' },
-    { _id: 'b-move', period: current, amount: 1800000, spent: 0, categoryId: 'c-move' },
-    { _id: 'b-shop', period: current, amount: 2200000, spent: 0, categoryId: 'c-shop' },
-  ],
   goals: [
     { _id: 'g-trip', name: 'Du lịch Đà Lạt', targetAmount: 15000000, savedAmount: 9200000, deadline: new Date(new Date().getFullYear(), new Date().getMonth() + 3, 20).toISOString(), icon: 'plane', color: '#7098cc' },
     { _id: 'g-emergency', name: 'Quỹ dự phòng', targetAmount: 50000000, savedAmount: 32750000, deadline: new Date(new Date().getFullYear(), new Date().getMonth() + 10, 1).toISOString(), icon: 'shield-check', color: '#087f6a' },
   ], user: demoUser,
 };
-for (const budget of defaults.budgets) budget.spent = defaults.transactions.filter(t => t.kind === 'expense' && t.categoryId === budget.categoryId && t.date.startsWith(current)).reduce((sum, t) => sum + t.amount, 0);
 const STORE_KEY = 'chitieu-demo-v1';
 let memory: DemoStore | null = null;
 export function readStore(): DemoStore {

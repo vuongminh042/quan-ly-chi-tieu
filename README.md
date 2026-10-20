@@ -1,6 +1,6 @@
 # Chi Tiêu — quản lý tài chính cá nhân
 
-Website quản lý chi tiêu theo yêu cầu, sử dụng **MongoDB, Express, React và Node.js**. Giao diện tiếng Việt tập trung vào giao dịch hằng ngày, kế hoạch ngân sách, mục tiêu tiết kiệm và báo cáo trực quan.
+Website quản lý chi tiêu theo yêu cầu, sử dụng **MongoDB, Express, React và Node.js**. Giao diện tiếng Việt tập trung vào giao dịch hằng ngày, mục tiêu tiết kiệm và báo cáo trực quan.
 
 ## Tính năng
 
@@ -15,7 +15,7 @@ Website quản lý chi tiêu theo yêu cầu, sử dụng **MongoDB, Express, Re
 - Ảnh đại diện tải trực tiếp lên Cloudinary; MongoDB chỉ lưu URL và mã ảnh.
 - Ghi nhận, sửa, xóa giao dịch thu/chi; tìm kiếm, lọc theo ngày/danh mục/tài khoản, sắp xếp và phân trang.
 - Quản lý tiền mặt, ngân hàng, ví điện tử và danh mục; số dư tài khoản tính từ số dư ban đầu và các giao dịch.
-- Ngân sách theo danh mục/tháng; mục tiêu tiết kiệm có tiến độ và ghi nhận khoản góp.
+- Mục tiêu tiết kiệm có tiến độ và ghi nhận khoản góp.
 - Dashboard có biểu đồ dòng tiền và cơ cấu chi tiêu; báo cáo nhóm theo ngày/tháng/năm, danh mục và tài khoản, so sánh với kỳ trước.
 - Xuất lịch sử thành CSV và workbook Excel `.xlsx` có sheet Tổng quan, Giao dịch, Theo danh mục và Theo tháng.
 - Responsive cho điện thoại và máy tính; tiền VND/ngày theo chuẩn Việt Nam.

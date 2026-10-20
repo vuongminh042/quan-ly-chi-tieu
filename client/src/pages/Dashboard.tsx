@@ -3,7 +3,6 @@ import { useOutletContext, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
   CalendarDays,
-  CircleDollarSign,
   TrendingDown,
   TrendingUp,
   Wallet,
@@ -24,7 +23,6 @@ import { get } from "../lib/api";
 import { currency, dateShort, monthKey, money } from "../lib/format";
 import type {
   Account,
-  Budget,
   PageResult,
   Report,
   Transaction,
@@ -46,7 +44,6 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [report, setReport] = useState<Report | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [recent, setRecent] = useState<Transaction[]>([]);
   const [busy, setBusy] = useState(true);
   const nav = useNavigate();
@@ -63,7 +60,6 @@ export default function Dashboard() {
         to: now.toISOString().slice(0, 10),
       }),
       get<{ items: Account[] }>("/accounts"),
-      get<{ items: Budget[] }>("/budgets", { period: monthKey() }),
       get<PageResult<Transaction>>("/transactions", {
         from: new Date(now.getFullYear(), now.getMonth(), 1)
           .toISOString()
@@ -73,11 +69,10 @@ export default function Dashboard() {
         limit: 5,
       }),
     ])
-      .then(([r, a, b, t]) => {
+      .then(([r, a, t]) => {
         if (active) {
           setReport(r);
           setAccounts(a.items);
-          setBudgets(b.items);
           setRecent(t.items);
         }
       })
@@ -88,8 +83,6 @@ export default function Dashboard() {
     };
   }, [refresh]);
   const totalBalance = accounts.reduce((sum, a) => sum + a.balance, 0);
-  const spent = budgets.reduce((sum, b) => sum + b.spent, 0);
-  const budgetTotal = budgets.reduce((sum, b) => sum + b.amount, 0);
   const expenseCategories =
     report?.categories.filter((x) => x.kind === "expense").slice(0, 5) ?? [];
   const todayLabel = new Intl.DateTimeFormat("vi-VN", {
@@ -133,28 +126,6 @@ export default function Dashboard() {
           icon={<TrendingDown size={18} />}
           delta="Tổng chi trong kỳ"
         />
-        <div className="budget-stat-card">
-          <div className="stat-top">
-            <span>Ngân sách tháng</span>
-            <span className="stat-icon">
-              <CircleDollarSign size={18} />
-            </span>
-          </div>
-          <strong>
-            {currency(spent)} <small>/ {currency(budgetTotal)}</small>
-          </strong>
-          <div className="progress-track">
-            <span
-              style={{
-                width: `${budgetTotal ? Math.min(100, (spent / budgetTotal) * 100) : 0}%`,
-              }}
-            />
-          </div>
-          <small>
-            {budgetTotal ? Math.round((spent / budgetTotal) * 100) : 0}% hạn mức
-            đã dùng
-          </small>
-        </div>
       </div>
       <div className="dashboard-main-grid">
         <Panel
@@ -362,56 +333,6 @@ export default function Dashboard() {
               hint="Ghi lại khoản thu hoặc chi đầu tiên của bạn."
             />
           )}
-        </Panel>
-        <Panel
-          title="Ngân sách tháng này"
-          className="budget-panel"
-          action={
-            <button className="text-link" onClick={() => nav("/budgets")}>
-              Quản lý <ArrowRight size={14} />
-            </button>
-          }
-        >
-          {budgets.length ? (
-            <div className="budget-list">
-              {budgets.slice(0, 4).map((b) => {
-                const cat =
-                  typeof b.categoryId === "string" ? null : b.categoryId;
-                const pct = Math.min(
-                  100,
-                  b.amount ? (b.spent / b.amount) * 100 : 0,
-                );
-                return (
-                  <div className="budget-item" key={b._id}>
-                    <div className="budget-item-head">
-                      <span className="budget-name">
-                        <i style={{ background: cat?.color ?? "#087f6a" }} />
-                        <span>{cat?.name ?? "Danh mục"}</span>
-                      </span>
-                      <strong>
-                        {currency(b.spent, true)}{" "}
-                        <small>/ {currency(b.amount, true)}</small>
-                      </strong>
-                    </div>
-                    <div className="progress-track">
-                      <span
-                        className={pct > 90 ? "over-budget" : ""}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <EmptyState
-              title="Chưa đặt ngân sách"
-              hint="Lập hạn mức theo danh mục để chủ động hơn."
-            />
-          )}
-          <button className="budget-add-link" onClick={() => nav("/budgets")}>
-            <span>＋</span> Thiết lập ngân sách mới
-          </button>
         </Panel>
       </div>
       {busy && <div className="subtle-loading">Đang đồng bộ số liệu…</div>}
