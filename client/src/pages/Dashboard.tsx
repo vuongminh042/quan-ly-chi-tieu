@@ -20,7 +20,7 @@ import {
   YAxis,
 } from "recharts";
 import { get } from "../lib/api";
-import { currency, dateShort, monthKey, money } from "../lib/format";
+import { currency, dateShort, isoDate, monthKey, money } from "../lib/format";
 import type {
   Account,
   PageResult,
@@ -51,20 +51,16 @@ export default function Dashboard() {
     let active = true;
     setBusy(true);
     const now = new Date();
-    const from = new Date(now.getFullYear(), now.getMonth() - 5, 1)
-      .toISOString()
-      .slice(0, 10);
+    const from = isoDate(new Date(now.getFullYear(), now.getMonth() - 5, 1));
     Promise.all([
       get<Report>("/reports/summary", {
         from,
-        to: now.toISOString().slice(0, 10),
+        to: isoDate(now),
       }),
       get<{ items: Account[] }>("/accounts"),
       get<PageResult<Transaction>>("/transactions", {
-        from: new Date(now.getFullYear(), now.getMonth(), 1)
-          .toISOString()
-          .slice(0, 10),
-        to: now.toISOString().slice(0, 10),
+        from: isoDate(new Date(now.getFullYear(), now.getMonth(), 1)),
+        to: isoDate(now),
         page: 1,
         limit: 5,
       }),

@@ -1,24 +1,311 @@
-import { useEffect, useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
-import { Banknote, CreditCard, Pencil, Plus, Trash2, Wallet, X, ArrowDownRight, ArrowUpRight } from 'lucide-react';
-import { get, post, patch, del } from '../lib/api';
-import { accountLabel, currency } from '../lib/format';
-import type { Account } from '../types';
-import { Button, EmptyState, PageTitle, Panel } from '../components/UI';
-import { useConfirm } from '../components/ConfirmDialog';
-import type { AppOutlet } from '../components/AppShell';
+import { useEffect, useState } from "react";
+import { useOutletContext } from "react-router-dom";
+import {
+  Banknote,
+  CreditCard,
+  Pencil,
+  Plus,
+  Trash2,
+  Wallet,
+  X,
+  ArrowDownRight,
+  ArrowUpRight,
+} from "lucide-react";
+import { get, post, patch, del } from "../lib/api";
+import { accountLabel, currency } from "../lib/format";
+import type { Account } from "../types";
+import { Button, EmptyState, PageTitle, Panel } from "../components/UI";
+import { useConfirm } from "../components/ConfirmDialog";
+import type { AppOutlet } from "../components/AppShell";
 
-const accountIcons={cash:Banknote,bank:CreditCard,ewallet:Wallet};
-export default function Accounts(){const {refresh,notify}=useOutletContext<AppOutlet>();const confirm=useConfirm();const [accounts,setAccounts]=useState<Account[]>([]);const [show,setShow]=useState(false);const [name,setName]=useState('');const [kind,setKind]=useState<'cash'|'bank'|'ewallet'>('bank');const [balance,setBalance]=useState('');const [editing,setEditing]=useState<Account|null>(null);const [editName,setEditName]=useState('');const [editKind,setEditKind]=useState<'cash'|'bank'|'ewallet'>('bank');const [editBalance,setEditBalance]=useState('');const [savingEdit,setSavingEdit]=useState(false);
- useEffect(()=>{void get<{items:Account[]}>('/accounts').then(x=>setAccounts(x.items)).catch(()=>notify('Không tải được tài khoản.'));},[refresh]);
- async function create(e:React.FormEvent){e.preventDefault();try{await post('/accounts',{name,kind,openingBalance:Number(balance||0)});setName('');setBalance('');setShow(false);notify('Đã thêm tài khoản.');const x=await get<{items:Account[]}>('/accounts');setAccounts(x.items);}catch(err:any){notify(err?.response?.data?.error??'Không thêm được tài khoản.');}}
- function startEdit(account:Account){setEditing(account);setEditName(account.name);setEditKind(account.kind);setEditBalance(String(account.balance));}
- async function saveEdit(e:React.FormEvent){e.preventDefault();if(!editing)return;setSavingEdit(true);try{await patch(`/accounts/${editing._id}`,{name:editName,kind:editKind,balance:Number(editBalance)});const x=await get<{items:Account[]}>('/accounts');setAccounts(x.items);setEditing(null);notify('Đã cập nhật tài khoản và số dư.');}catch(err:any){notify(err?.response?.data?.error??'Không thể cập nhật tài khoản.');}finally{setSavingEdit(false);}}
- async function remove(id:string){if(!await confirm({title:'Xóa tài khoản?',message:'Chỉ xóa được tài khoản khi không còn giao dịch đang dùng tài khoản này.'}))return;try{await del(`/accounts/${id}`);setAccounts(x=>x.filter(a=>a._id!==id));notify('Đã xóa tài khoản.');}catch(err:any){notify(err?.response?.data?.error??'Không xóa được tài khoản.');}}
- const total=accounts.reduce((sum,a)=>sum+a.balance,0);
- return <div className="page-stack"><PageTitle eyebrow="TIỀN CỦA BẠN ĐANG Ở ĐÂU" title="Tài khoản tiền." description="Tập hợp tiền mặt, ngân hàng và ví điện tử vào cùng một nơi." action={<Button onClick={()=>setShow(x=>!x)}><Plus size={16}/> Thêm tài khoản</Button>}/><div className="account-total-banner"><div><span>TỔNG SỐ DƯ</span><strong>{currency(total)}</strong><small>{accounts.length} nguồn tiền đang theo dõi</small></div><div className="account-orbit"><span/><span/><span/><Wallet size={25}/></div></div>
- {show&&<Panel title="Thêm nguồn tiền"><form className="inline-account-form" onSubmit={create}><label>Tên tài khoản<input value={name} onChange={e=>setName(e.target.value)} placeholder="Ví dụ: Tài khoản tiết kiệm" required maxLength={80}/></label><label>Loại tài khoản<select value={kind} onChange={e=>setKind(e.target.value as typeof kind)}><option value="bank">Ngân hàng</option><option value="cash">Tiền mặt</option><option value="ewallet">Ví điện tử</option></select></label><label>Số dư ban đầu<input type="number" min="0" value={balance} onChange={e=>setBalance(e.target.value)} placeholder="0"/></label><Button type="submit">Lưu tài khoản</Button></form></Panel>}
- {accounts.length?<div className="account-grid">{accounts.map((account,index)=>{const Icon=accountIcons[account.kind]??Wallet;return <Panel className={`account-card account-card-${index%3}`} key={account._id}><div className="account-card-top"><span className="account-icon"><Icon size={19}/></span><span className="account-card-actions"><button className="icon-button" onClick={()=>startEdit(account)} title="Sửa tài khoản và số dư" aria-label={`Sửa ${account.name}`}><Pencil size={15}/></button><button className="icon-button subtle-delete" onClick={()=>void remove(account._id)} title="Xóa tài khoản"><Trash2 size={16}/></button></span></div><div className="account-name">{account.name}</div><div className="account-kind">{accountLabel(account.kind)}</div><strong className="account-balance">{currency(account.balance)}</strong><div className="account-divider"/><div className="account-mini-stats"><span><ArrowUpRight size={14}/> Số dư thay đổi theo giao dịch</span><span className="account-current"><i/> Đang theo dõi</span></div></Panel>;})}</div>:<Panel><EmptyState title="Chưa có tài khoản tiền" hint="Thêm tiền mặt, ngân hàng hoặc ví điện tử để ghi nhận giao dịch."/></Panel>}
- {editing&&<div className="modal-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget&&!savingEdit)setEditing(null);}}><div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="edit-account-title"><div className="modal-head"><div><span className="eyebrow">CẬP NHẬT NGUỒN TIỀN</span><h2 id="edit-account-title">Sửa tài khoản</h2></div><button className="icon-button" onClick={()=>setEditing(null)} aria-label="Đóng" disabled={savingEdit}><X size={18}/></button></div><form onSubmit={saveEdit} className="form-stack"><label>Tên tài khoản<input value={editName} onChange={e=>setEditName(e.target.value)} minLength={1} maxLength={80} required/></label><label>Loại tài khoản<select value={editKind} onChange={e=>setEditKind(e.target.value as typeof editKind)}><option value="bank">Ngân hàng</option><option value="cash">Tiền mặt</option><option value="ewallet">Ví điện tử</option></select></label><label>Số dư hiện tại (VND)<input type="number" inputMode="decimal" min="0" max="1000000000000" step="any" value={editBalance} onChange={e=>setEditBalance(e.target.value)} required/><small>Số dư mới sẽ được cập nhật mà không thay đổi lịch sử giao dịch.</small></label><div className="modal-actions"><Button type="button" variant="secondary" onClick={()=>setEditing(null)} disabled={savingEdit}>Hủy</Button><Button type="submit" disabled={savingEdit}>{savingEdit?'Đang lưu…':'Lưu thay đổi'}</Button></div></form></div></div>}
- </div>;
+const accountIcons = { cash: Banknote, bank: CreditCard, ewallet: Wallet };
+export default function Accounts() {
+  const { refresh, notify } = useOutletContext<AppOutlet>();
+  const confirm = useConfirm();
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [show, setShow] = useState(false);
+  const [name, setName] = useState("");
+  const [kind, setKind] = useState<"cash" | "bank" | "ewallet">("bank");
+  const [balance, setBalance] = useState("");
+  const [editing, setEditing] = useState<Account | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editKind, setEditKind] = useState<"cash" | "bank" | "ewallet">("bank");
+  const [editBalance, setEditBalance] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  useEffect(() => {
+    void get<{ items: Account[] }>("/accounts")
+      .then((x) => setAccounts(x.items))
+      .catch(() => notify("Không tải được tài khoản."));
+  }, [refresh]);
+  async function create(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      await post("/accounts", {
+        name,
+        kind,
+        openingBalance: Number(balance || 0),
+      });
+      setName("");
+      setBalance("");
+      setShow(false);
+      notify("Đã thêm tài khoản.");
+      const x = await get<{ items: Account[] }>("/accounts");
+      setAccounts(x.items);
+    } catch (err: any) {
+      notify(err?.response?.data?.error ?? "Không thêm được tài khoản.");
+    }
+  }
+  function startEdit(account: Account) {
+    setEditing(account);
+    setEditName(account.name);
+    setEditKind(account.kind);
+    setEditBalance(String(account.balance));
+  }
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editing) return;
+    setSavingEdit(true);
+    try {
+      await patch(`/accounts/${editing._id}`, {
+        name: editName,
+        kind: editKind,
+        balance: Number(editBalance),
+      });
+      const x = await get<{ items: Account[] }>("/accounts");
+      setAccounts(x.items);
+      setEditing(null);
+      notify("Đã cập nhật tài khoản và số dư.");
+    } catch (err: any) {
+      notify(err?.response?.data?.error ?? "Không thể cập nhật tài khoản.");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+  async function remove(id: string) {
+    if (
+      !(await confirm({
+        title: "Xóa tài khoản?",
+        message:
+          "Chỉ xóa được tài khoản khi không còn giao dịch đang dùng tài khoản này.",
+      }))
+    )
+      return;
+    try {
+      await del(`/accounts/${id}`);
+      setAccounts((x) => x.filter((a) => a._id !== id));
+      notify("Đã xóa tài khoản.");
+    } catch (err: any) {
+      notify(err?.response?.data?.error ?? "Không xóa được tài khoản.");
+    }
+  }
+  const total = accounts.reduce((sum, a) => sum + a.balance, 0);
+  return (
+    <div className="page-stack">
+      <PageTitle
+        eyebrow="TIỀN CỦA BẠN ĐANG Ở ĐÂU"
+        title="Tài khoản tiền."
+        description="Tập hợp tiền mặt, ngân hàng và ví điện tử vào cùng một nơi."
+        action={
+          <Button onClick={() => setShow((x) => !x)}>
+            <Plus size={16} /> Thêm tài khoản
+          </Button>
+        }
+      />
+      <div className="account-total-banner">
+        <div>
+          <span>TỔNG SỐ DƯ</span>
+          <strong>{currency(total)}</strong>
+          <small>{accounts.length} nguồn tiền đang theo dõi</small>
+        </div>
+        <div className="account-orbit">
+          <span />
+          <span />
+          <span />
+          <Wallet size={25} />
+        </div>
+      </div>
+      {show && (
+        <Panel title="Thêm nguồn tiền">
+          <form className="inline-account-form" onSubmit={create}>
+            <label>
+              Tên tài khoản
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Ví dụ: Tài khoản tiết kiệm"
+                required
+                maxLength={80}
+              />
+            </label>
+            <label>
+              Loại tài khoản
+              <select
+                value={kind}
+                onChange={(e) => setKind(e.target.value as typeof kind)}
+              >
+                <option value="bank">Ngân hàng</option>
+                <option value="cash">Tiền mặt</option>
+                <option value="ewallet">Ví điện tử</option>
+              </select>
+            </label>
+            <label>
+              Số dư ban đầu
+              <input
+                type="number"
+                min="0"
+                value={balance}
+                onChange={(e) => setBalance(e.target.value)}
+                placeholder="0"
+              />
+            </label>
+            <Button type="submit">Lưu tài khoản</Button>
+          </form>
+        </Panel>
+      )}
+      {accounts.length ? (
+        <div className="account-grid">
+          {accounts.map((account, index) => {
+            const Icon = accountIcons[account.kind] ?? Wallet;
+            return (
+              <Panel
+                className={`account-card account-card-${index % 3}`}
+                key={account._id}
+              >
+                <div className="account-card-top">
+                  <span className="account-icon">
+                    <Icon size={19} />
+                  </span>
+                  <span className="account-card-actions">
+                    <button
+                      className="icon-button"
+                      onClick={() => startEdit(account)}
+                      title="Sửa tài khoản và số dư"
+                      aria-label={`Sửa ${account.name}`}
+                    >
+                      <Pencil size={15} />
+                    </button>
+                    <button
+                      className="icon-button subtle-delete"
+                      onClick={() => void remove(account._id)}
+                      title="Xóa tài khoản"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </span>
+                </div>
+                <div className="account-name">{account.name}</div>
+                <div className="account-kind">{accountLabel(account.kind)}</div>
+                <strong className="account-balance">
+                  {currency(account.balance)}
+                </strong>
+                <div className="account-divider" />
+                <div className="account-mini-stats">
+                  <span>
+                    <ArrowUpRight size={14} /> Số dư thay đổi theo giao dịch
+                  </span>
+                  <span className="account-current">
+                    <i /> Đang theo dõi
+                  </span>
+                </div>
+              </Panel>
+            );
+          })}
+        </div>
+      ) : (
+        <Panel>
+          <EmptyState
+            title="Chưa có tài khoản tiền"
+            hint="Thêm tiền mặt, ngân hàng hoặc ví điện tử để ghi nhận giao dịch."
+          />
+        </Panel>
+      )}
+      {editing && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !savingEdit)
+              setEditing(null);
+          }}
+        >
+          <div
+            className="modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-account-title"
+          >
+            <div className="modal-head">
+              <div>
+                <span className="eyebrow">CẬP NHẬT NGUỒN TIỀN</span>
+                <h2 id="edit-account-title">Sửa tài khoản</h2>
+              </div>
+              <button
+                className="icon-button"
+                onClick={() => setEditing(null)}
+                aria-label="Đóng"
+                disabled={savingEdit}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={saveEdit} className="form-stack">
+              <label>
+                Tên tài khoản
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  minLength={1}
+                  maxLength={80}
+                  required
+                />
+              </label>
+              <label>
+                Loại tài khoản
+                <select
+                  value={editKind}
+                  onChange={(e) =>
+                    setEditKind(e.target.value as typeof editKind)
+                  }
+                >
+                  <option value="bank">Ngân hàng</option>
+                  <option value="cash">Tiền mặt</option>
+                  <option value="ewallet">Ví điện tử</option>
+                </select>
+              </label>
+              <label>
+                Số dư hiện tại (VND)
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  max="1000000000000"
+                  step="any"
+                  value={editBalance}
+                  onChange={(e) => setEditBalance(e.target.value)}
+                  required
+                />
+                <small>
+                  Số dư mới sẽ được cập nhật mà không thay đổi lịch sử giao
+                  dịch.
+                </small>
+              </label>
+              <div className="modal-actions">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setEditing(null)}
+                  disabled={savingEdit}
+                >
+                  Hủy
+                </Button>
+                <Button type="submit" disabled={savingEdit}>
+                  {savingEdit ? "Đang lưu…" : "Lưu thay đổi"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

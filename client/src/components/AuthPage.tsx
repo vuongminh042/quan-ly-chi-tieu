@@ -168,7 +168,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   return (
     <div className="auth-layout">
       <section className="auth-story">
-        <div className="brand auth-brand">
+        <Link to="/" aria-label="Chi Tiêu – về trang chủ" className="brand auth-brand">
           <div className="brand-mark">
             <span></span>
             <i></i>
@@ -177,7 +177,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
             chi<span>tiêu</span>
             <small>TÀI CHÍNH CỦA BẠN</small>
           </div>
-        </div>
+        </Link>
         <div className="auth-story-copy">
           <span className="eyebrow">RÕ TỪNG ĐỒNG, NHẸ ĐẦU MỖI THÁNG</span>
           <h1>

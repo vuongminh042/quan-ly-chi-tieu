@@ -8,6 +8,7 @@ import { AccountSupportChat } from './components/AccountSupportChat';
 import { Loading } from './components/UI';
 import { ToastProvider } from './components/Toast';
 import { ConfirmProvider } from './components/ConfirmDialog';
+import NotFound from './pages/NotFound';
 
 const Dashboard=lazy(()=>import('./pages/Dashboard'));
 const Transactions=lazy(()=>import('./pages/Transactions'));
@@ -34,7 +35,7 @@ function AppRoutes() {
           <Route path="/settings" element={<Settings />} />
           <Route path="/admin" element={user?.isAdmin ? <Admin /> : <Navigate to="/" replace />} />
         </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
       {!user ? <SupportChatWidget /> : !user.isAdmin ? <AccountSupportChat /> : null}
     </Suspense>

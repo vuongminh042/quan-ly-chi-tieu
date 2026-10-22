@@ -112,14 +112,22 @@ export function AppShell() {
       <div className="app-frame">
         <aside className={`sidebar ${mobileNav ? "sidebar-open" : ""}`}>
           <div className="brand">
-            <div className="brand-mark">
-              <span></span>
-              <i></i>
-            </div>
-            <div className="brand-text">
-              Quản<span> lý </span> chi <span> tiêu </span>
-              <small>TÀI CHÍNH CỦA BẠN</small>
-            </div>
+            <NavLink
+              to="/"
+              end
+              onClick={() => setMobileNav(false)}
+              aria-label="Chi Tiêu – về trang chủ"
+              className="brand-home-link"
+            >
+              <div className="brand-mark">
+                <span></span>
+                <i></i>
+              </div>
+              <div className="brand-text">
+                Quản<span> lý </span> chi <span> tiêu </span>
+                <small>TÀI CHÍNH CỦA BẠN</small>
+              </div>
+            </NavLink>
             <button
               className="icon-button mobile-close"
               onClick={() => setMobileNav(false)}

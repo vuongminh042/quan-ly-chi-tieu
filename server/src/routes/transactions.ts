@@ -43,7 +43,8 @@ async function ensureSufficientBalance(
   const account = await Account.findOne({ _id: accountId, userId }).select('openingBalance');
   if (!account) throw Object.assign(new Error('Tài khoản tiền không tồn tại.'), { status: 400 });
   const match: Record<string, unknown> = {
-    userId,
+    // Aggregation pipelines do not cast string IDs the way Mongoose queries do.
+    userId: new Types.ObjectId(userId),
     accountId: account._id,
   };
   if (excludeTransactionId) match._id = { $ne: excludeTransactionId };
