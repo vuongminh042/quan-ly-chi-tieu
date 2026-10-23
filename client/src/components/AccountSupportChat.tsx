@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Check, CheckCheck, Headset, MessageCircle, Send, X } from "lucide-react";
+import {
+  Check,
+  CheckCheck,
+  Headset,
+  MessageCircle,
+  Send,
+  X,
+} from "lucide-react";
 import { io, type Socket } from "socket.io-client";
 import axios from "axios";
 import { http } from "../lib/api";
@@ -27,7 +34,10 @@ type SupportMessage = {
 
 function errorMessage(error: unknown): string {
   if (axios.isAxiosError<{ error?: string }>(error))
-    return error.response?.data?.error ?? "Không thể kết nối hỗ trợ. Vui lòng thử lại.";
+    return (
+      error.response?.data?.error ??
+      "Không thể kết nối hỗ trợ. Vui lòng thử lại."
+    );
   return error instanceof Error ? error.message : "Không thể gửi tin nhắn.";
 }
 
@@ -40,7 +50,9 @@ function timeLabel(value: string): string {
 
 export function AccountSupportChat() {
   const [isOpen, setIsOpen] = useState(false);
-  const [conversation, setConversation] = useState<SupportConversation | null>(null);
+  const [conversation, setConversation] = useState<SupportConversation | null>(
+    null,
+  );
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
@@ -67,9 +79,9 @@ export function AccountSupportChat() {
   }
 
   async function loadConversationSummary() {
-    const { data } = await http.get<{ conversation: SupportConversation | null }>(
-      "/support/account/conversation",
-    );
+    const { data } = await http.get<{
+      conversation: SupportConversation | null;
+    }>("/support/account/conversation");
     setConversation(data.conversation);
   }
 
@@ -88,37 +100,53 @@ export function AccountSupportChat() {
         .then(() => {
           const conversationId = conversationIdRef.current;
           if (conversationId)
-            socket.emit("support:join-account-conversation", conversationId, (result: { ok: boolean }) => {
-              if (!result.ok)
-                setError("Không thể tham gia hội thoại realtime. Hãy tải lại khung chat.");
-            });
+            socket.emit(
+              "support:join-account-conversation",
+              conversationId,
+              (result: { ok: boolean }) => {
+                if (!result.ok)
+                  setError(
+                    "Không thể tham gia hội thoại realtime. Hãy tải lại khung chat.",
+                  );
+              },
+            );
         })
         .catch((syncError: unknown) => setError(errorMessage(syncError)));
     });
     socket.on("connect_error", () => {
-      setError("Kết nối realtime bị gián đoạn. Bạn vẫn có thể tải lại hội thoại.");
+      setError(
+        "Kết nối realtime bị gián đoạn. Bạn vẫn có thể tải lại hội thoại.",
+      );
     });
     socket.on("disconnect", () => setAdminTyping(false));
-    socket.on("support:conversation-linked", (update: { conversationId: string }) => {
-      if (update.conversationId !== conversationIdRef.current) {
-        void loadConversationSummary().catch((syncError: unknown) =>
-          setError(errorMessage(syncError)),
-        );
-      }
-    });
-    socket.on("support:conversation-deleted", (update: { conversationId: string }) => {
-      if (update.conversationId !== conversationIdRef.current) return;
-      conversationIdRef.current = null;
-      setConversation(null);
-      setMessages([]);
-      setDraft("");
-      setAdminTyping(false);
-      setIsOpen(false);
-    });
+    socket.on(
+      "support:conversation-linked",
+      (update: { conversationId: string }) => {
+        if (update.conversationId !== conversationIdRef.current) {
+          void loadConversationSummary().catch((syncError: unknown) =>
+            setError(errorMessage(syncError)),
+          );
+        }
+      },
+    );
+    socket.on(
+      "support:conversation-deleted",
+      (update: { conversationId: string }) => {
+        if (update.conversationId !== conversationIdRef.current) return;
+        conversationIdRef.current = null;
+        setConversation(null);
+        setMessages([]);
+        setDraft("");
+        setAdminTyping(false);
+        setIsOpen(false);
+      },
+    );
     socket.on("support:message", (message: SupportMessage) => {
       if (message.conversationId !== conversationIdRef.current) return;
       setMessages((current) =>
-        current.some((item) => item.id === message.id) ? current : [...current, message],
+        current.some((item) => item.id === message.id)
+          ? current
+          : [...current, message],
       );
       if (isOpenRef.current)
         void loadConversationMessages().catch((syncError: unknown) =>
@@ -127,7 +155,11 @@ export function AccountSupportChat() {
     });
     socket.on(
       "support:message-status",
-      (update: { messageId: string; senderRole: "visitor" | "admin"; status: SupportMessage["deliveryStatus"] }) => {
+      (update: {
+        messageId: string;
+        senderRole: "visitor" | "admin";
+        status: SupportMessage["deliveryStatus"];
+      }) => {
         if (update.senderRole !== "visitor") return;
         setMessages((current) =>
           current.map((message) =>
@@ -142,20 +174,30 @@ export function AccountSupportChat() {
       "support:conversation-updated",
       (update: Partial<SupportConversation> & { id: string }) => {
         if (update.id !== conversationIdRef.current) return;
-        setConversation((current) => current ? { ...current, ...update } : current);
+        setConversation((current) =>
+          current ? { ...current, ...update } : current,
+        );
         if (update.unreadByVisitor && isOpenRef.current)
           void loadConversationMessages().catch((syncError: unknown) =>
             setError(errorMessage(syncError)),
           );
       },
     );
-    socket.on("support:status", (update: { conversationId: string; status: "open" | "closed" }) => {
-      if (update.conversationId === conversationIdRef.current)
-        setConversation((current) => current ? { ...current, status: update.status } : current);
-    });
-    socket.on("support:typing", (update: { senderRole: "admin" | "visitor"; isTyping: boolean }) => {
-      if (update.senderRole === "admin") setAdminTyping(update.isTyping);
-    });
+    socket.on(
+      "support:status",
+      (update: { conversationId: string; status: "open" | "closed" }) => {
+        if (update.conversationId === conversationIdRef.current)
+          setConversation((current) =>
+            current ? { ...current, status: update.status } : current,
+          );
+      },
+    );
+    socket.on(
+      "support:typing",
+      (update: { senderRole: "admin" | "visitor"; isTyping: boolean }) => {
+        if (update.senderRole === "admin") setAdminTyping(update.isTyping);
+      },
+    );
     return () => {
       socket.disconnect();
       if (socketRef.current === socket) socketRef.current = null;
@@ -177,12 +219,14 @@ export function AccountSupportChat() {
         "support:join-account-conversation",
         conversation.id,
         (result: { ok: boolean }) => {
-        if (!result.ok) {
-          setError("Không thể tham gia hội thoại realtime. Hãy tải lại khung chat.");
-          return;
-        }
-        if (typingActiveRef.current)
-          socketRef.current?.emit("support:typing", { isTyping: true });
+          if (!result.ok) {
+            setError(
+              "Không thể tham gia hội thoại realtime. Hãy tải lại khung chat.",
+            );
+            return;
+          }
+          if (typingActiveRef.current)
+            socketRef.current?.emit("support:typing", { isTyping: true });
         },
       );
   }, [conversation?.id]);
@@ -194,7 +238,12 @@ export function AccountSupportChat() {
   }, [messages, isOpen]);
 
   function startTyping() {
-    if (!conversation || conversation.status !== "open" || typingActiveRef.current) return;
+    if (
+      !conversation ||
+      conversation.status !== "open" ||
+      typingActiveRef.current
+    )
+      return;
     socketRef.current?.emit("support:typing", { isTyping: true });
     typingActiveRef.current = true;
   }
@@ -208,7 +257,8 @@ export function AccountSupportChat() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const content = draft.trim();
-    if (!content || sending || !conversation || conversation.status !== "open") return;
+    if (!content || sending || !conversation || conversation.status !== "open")
+      return;
     const sensitiveContentWarning = sensitiveSupportContentWarning(content);
     if (sensitiveContentWarning) {
       setError(sensitiveContentWarning);
@@ -240,16 +290,34 @@ export function AccountSupportChat() {
   return (
     <div className="support-widget">
       {isOpen && (
-        <section className="support-window" aria-label="Trò chuyện với quản trị viên">
+        <section
+          className="support-window"
+          aria-label="Trò chuyện với quản trị viên"
+        >
           <header className="support-header">
-            <span className="support-header-icon"><Headset size={19} /></span>
+            <span className="support-header-icon">
+              <Headset size={19} />
+            </span>
             <div>
               <strong>Hỗ trợ khách hàng</strong>
-              <small className={adminTyping ? "support-header-typing" : ""} aria-live="polite">
-                {adminTyping ? "Quản trị viên đang soạn tin…" : "Hội thoại được lưu trong tài khoản"}
+              <small
+                className={adminTyping ? "support-header-typing" : ""}
+                aria-live="polite"
+              >
+                {adminTyping
+                  ? "Quản trị viên đang soạn tin…"
+                  : "Hội thoại được lưu trong tài khoản"}
               </small>
             </div>
-            <button type="button" className="support-close" aria-label="Đóng cửa sổ hỗ trợ" onClick={() => { stopTyping(); setIsOpen(false); }}>
+            <button
+              type="button"
+              className="support-close"
+              aria-label="Đóng cửa sổ hỗ trợ"
+              onClick={() => {
+                stopTyping();
+                setIsOpen(false);
+              }}
+            >
               <X size={18} />
             </button>
           </header>
@@ -264,7 +332,10 @@ export function AccountSupportChat() {
                 onScroll={(event) => {
                   const container = event.currentTarget;
                   shouldAutoScrollRef.current =
-                    container.scrollHeight - container.scrollTop - container.clientHeight < 80;
+                    container.scrollHeight -
+                      container.scrollTop -
+                      container.clientHeight <
+                    80;
                 }}
               >
                 {messages.map((message) => (
@@ -272,19 +343,40 @@ export function AccountSupportChat() {
                     className={`support-message ${message.senderRole === "visitor" ? "mine" : ""}`}
                     key={message.id}
                   >
-                    <small>{message.senderRole === "visitor" ? "Bạn" : "Quản trị viên"} · {timeLabel(message.createdAt)}</small>
+                    <small>
+                      {message.senderRole === "visitor"
+                        ? "Bạn"
+                        : "Quản trị viên"}{" "}
+                      · {timeLabel(message.createdAt)}
+                    </small>
                     <p>{message.content}</p>
                     {message.senderRole === "visitor" && (
                       <span className="support-message-status">
-                        {message.deliveryStatus === "read" ? <CheckCheck size={12} /> : <Check size={12} />}
-                        {message.deliveryStatus === "read" ? "Đã xem" : message.deliveryStatus === "received" ? "Đã nhận" : "Đã gửi"}
+                        {message.deliveryStatus === "read" ? (
+                          <CheckCheck size={12} />
+                        ) : (
+                          <Check size={12} />
+                        )}
+                        {message.deliveryStatus === "read"
+                          ? "Đã xem"
+                          : message.deliveryStatus === "received"
+                            ? "Đã nhận"
+                            : "Đã gửi"}
                       </span>
                     )}
                   </div>
                 ))}
-                {adminTyping && <div className="support-typing">Quản trị viên đang soạn tin…</div>}
+                {adminTyping && (
+                  <div className="support-typing">
+                    Quản trị viên đang soạn tin…
+                  </div>
+                )}
               </div>
-              {error && <div className="support-error" role="alert">{error}</div>}
+              {error && (
+                <div className="support-error" role="alert">
+                  {error}
+                </div>
+              )}
               {conversation.status === "open" ? (
                 <form className="support-compose" onSubmit={submit}>
                   <label className="support-message-input">
@@ -292,7 +384,11 @@ export function AccountSupportChat() {
                       value={draft}
                       onChange={(event) => setDraft(event.target.value)}
                       onKeyDown={(event) => {
-                        if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                        if (
+                          event.key === "Enter" &&
+                          !event.shiftKey &&
+                          !event.nativeEvent.isComposing
+                        ) {
                           event.preventDefault();
                           event.currentTarget.form?.requestSubmit();
                         }
@@ -305,14 +401,22 @@ export function AccountSupportChat() {
                       rows={2}
                       required
                     />
-                    <button type="submit" disabled={!draft.trim() || sending} aria-label="Gửi tin nhắn">
+                    <button
+                      type="submit"
+                      disabled={!draft.trim() || sending}
+                      aria-label="Gửi tin nhắn"
+                    >
                       <Send size={17} />
                     </button>
                   </label>
-                  <small className="support-privacy">Lịch sử hội thoại chỉ hiển thị với tài khoản của bạn.</small>
+                  <small className="support-privacy">
+                    Lịch sử hội thoại chỉ hiển thị với tài khoản của bạn.
+                  </small>
                 </form>
               ) : (
-                <div className="support-closed"><span>Cuộc trò chuyện đã kết thúc.</span></div>
+                <div className="support-closed">
+                  <span>Cuộc trò chuyện đã kết thúc.</span>
+                </div>
               )}
             </>
           )}
@@ -328,11 +432,19 @@ export function AccountSupportChat() {
         aria-label={isOpen ? "Đóng hỗ trợ" : "Mở hội thoại hỗ trợ"}
         aria-expanded={isOpen}
       >
-        {isOpen ? <X size={21} /> : (
+        {isOpen ? (
+          <X size={21} />
+        ) : (
           <>
             <MessageCircle size={20} />
             <span>Hỗ trợ</span>
-            {!!conversation.unreadByVisitor && <i className="support-launcher-badge">{conversation.unreadByVisitor > 99 ? "99+" : conversation.unreadByVisitor}</i>}
+            {!!conversation.unreadByVisitor && (
+              <i className="support-launcher-badge">
+                {conversation.unreadByVisitor > 99
+                  ? "99+"
+                  : conversation.unreadByVisitor}
+              </i>
+            )}
           </>
         )}
       </button>

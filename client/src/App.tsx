@@ -9,6 +9,8 @@ import { Loading } from './components/UI';
 import { ToastProvider } from './components/Toast';
 import { ConfirmProvider } from './components/ConfirmDialog';
 import NotFound from './pages/NotFound';
+import LegalPage from './pages/LegalPage';
+import { ForgotPasswordPage, ResetPasswordPage } from './pages/PasswordRecovery';
 
 const Dashboard=lazy(()=>import('./pages/Dashboard'));
 const Transactions=lazy(()=>import('./pages/Transactions'));
@@ -26,6 +28,10 @@ function AppRoutes() {
       <Routes>
         <Route path="/login" element={user ? <Navigate to="/" replace /> : <AuthPage key="login" mode="login" />} />
         <Route path="/register" element={user ? <Navigate to="/" replace /> : <AuthPage key="register" mode="register" />} />
+        <Route path="/terms" element={<LegalPage type="terms" />} />
+        <Route path="/privacy" element={<LegalPage type="privacy" />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route element={user ? <AppShell /> : <Navigate to="/login" replace />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/transactions" element={<Transactions />} />

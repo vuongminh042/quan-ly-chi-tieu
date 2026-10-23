@@ -39,6 +39,8 @@ Mở `http://localhost:3000`. Vite chạy frontend ở cổng `3000`, chuyển t
 
 Để bật đăng nhập Google, tạo OAuth Client ID loại **Web application** trong Google Cloud Console. Thêm URL chuyển hướng được ủy quyền `http://localhost:3000/api/auth/google/callback` khi chạy local; đặt Client ID, Client Secret và URI tương ứng vào `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` và `GOOGLE_REDIRECT_URI` trong `.env`. Khi triển khai production, thêm domain HTTPS của ứng dụng với đường dẫn `/api/auth/google/callback` vào danh sách chuyển hướng và đặt cùng URI trong biến môi trường production. Không đưa Client Secret vào frontend.
 
+Để bật quên mật khẩu mà không cần domain riêng, bật Xác minh 2 bước cho tài khoản Gmail rồi tạo **Mật khẩu ứng dụng** trong phần bảo mật tài khoản Google. Đặt `SMTP_USER` thành địa chỉ Gmail, `SMTP_APP_PASSWORD` thành Mật khẩu ứng dụng, cùng `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465` và `SMTP_FROM_NAME` trong `.env`. Không dùng mật khẩu Gmail thường và không commit `.env`. Đặt `APP_BASE_URL` thành `http://localhost:3000` khi chạy local; trên production phải dùng URL HTTPS công khai của ứng dụng để liên kết trong email trỏ đúng trang. Khởi động lại server sau khi cấu hình. Khi đặt lại mật khẩu, các phiên đăng nhập cũ sẽ hết hiệu lực.
+
 Để cấp quyền quản trị, điền email của tài khoản đã đăng ký vào `ADMIN_EMAILS` trong `.env` (nhiều email phân tách bằng dấu phẩy), khởi động lại server rồi đăng nhập/tải lại ứng dụng. Chỉ email trong allowlist này truy cập được `/admin` và API quản trị.
 
 Xem hướng dẫn hệ điều hành, thiết lập Atlas, khóa JWT/cookie và chế độ production tại [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md).

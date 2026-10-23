@@ -62,7 +62,7 @@ export default function Settings() {
     void get<{ items: Category[] }>("/categories")
       .then((x) => setCategories(x.items))
       .catch(() => {});
-  }, [user?.name]);
+  }, [user?.name, demo]);
   useEffect(() => {
     if (!avatarPreview) return;
     function closeOnEscape(event: KeyboardEvent) {

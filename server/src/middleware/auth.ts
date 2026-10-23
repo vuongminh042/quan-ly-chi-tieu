@@ -21,12 +21,12 @@ export function jwtSecret(): string {
   return defaultDevSecret;
 }
 
-export function setSessionCookie(res: Response, userId: string): number {
+export function setSessionCookie(res: Response, userId: string, authVersion = 0): number {
   const sameSite = process.env.COOKIE_SAME_SITE === "lax" ? "lax" : "none";
   const secure = process.env.COOKIE_SECURE === "false" ? false : true;
   const expiresAt = Math.floor(Date.now() / 1000 + sessionDurationSeconds) * 1000;
   const token = jwt.sign(
-    { sub: userId },
+    { sub: userId, ver: authVersion },
     jwtSecret(),
     { expiresIn: sessionDurationSeconds },
   );
@@ -62,6 +62,7 @@ export async function requireAuth(
     return;
   }
   let userId: string;
+  let tokenVersion = 0;
   try {
     const payload = jwt.verify(token, jwtSecret()) as jwt.JwtPayload;
     if (
@@ -71,6 +72,7 @@ export async function requireAuth(
     )
       throw new Error("Invalid session");
     userId = payload.sub;
+    tokenVersion = typeof payload.ver === "number" ? payload.ver : 0;
     const expiresAt = Math.min(
       payload.exp,
       payload.iat + sessionDurationSeconds,
@@ -95,7 +97,7 @@ export async function requireAuth(
     return;
   }
   try {
-    const user = await User.findById(userId).select("isActive");
+    const user = await User.findById(userId).select("isActive authVersion");
     if (!user) {
       clearSessionCookie(res);
       res
@@ -115,6 +117,14 @@ export async function requireAuth(
             "Tài khoản đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên để được hỗ trợ.",
           code: "ACCOUNT_DEACTIVATED",
         });
+      return;
+    }
+    if (tokenVersion !== (user.authVersion ?? 0)) {
+      clearSessionCookie(res);
+      res.status(401).json({
+        error: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+        code: "SESSION_EXPIRED",
+      });
       return;
     }
     req.userId = userId;

@@ -2,7 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { User, Account, Category } from "../models/core.js";
 import {
   requireAuth,
@@ -12,6 +12,7 @@ import {
 } from "../middleware/auth.js";
 import { requireDatabase } from "../middleware/http.js";
 import { loginSchema, registerSchema } from "./validation.js";
+import { sendSmtpEmail } from "../services/smtp.js";
 
 const router = Router();
 router.use(requireDatabase);
@@ -26,6 +27,19 @@ const loginAttemptLimiter = rateLimit({
     error: "Có quá nhiều lần đăng nhập không thành công từ kết nối này. Vui lòng thử lại sau ít phút.",
   },
 });
+const passwordRecoveryLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Bạn đã yêu cầu khôi phục quá nhiều lần. Vui lòng thử lại sau." },
+});
+function hashResetToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+function resetEmailHtml(link: string): string {
+  return `<div style="font-family:Arial,sans-serif;line-height:1.7;color:#263b32;max-width:560px;margin:auto"><h2>Đặt lại mật khẩu Chi Tiêu</h2><p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn.</p><p><a href="${link}" style="display:inline-block;background:#087f6a;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none">Tạo mật khẩu mới</a></p><p>Liên kết chỉ dùng một lần và hết hạn sau 60 phút. Nếu bạn không yêu cầu thao tác này, hãy bỏ qua email.</p><p>Nếu nút không hoạt động, mở liên kết sau:<br><a href="${link}">${link}</a></p></div>`;
+}
 async function seedStarterData(userId: string): Promise<void> {
   await Promise.all([
     Account.create({
@@ -199,12 +213,86 @@ router.get("/google/callback", async (req, res) => {
       res.redirect("/login?google=account_deactivated");
       return;
     }
-    setSessionCookie(res, String(user._id));
+    setSessionCookie(res, String(user._id), user.authVersion ?? 0);
     res.redirect("/");
   } catch (error) {
     console.error("Google sign-in failed:", error);
     res.redirect("/login?google=failed");
   }
+});
+
+router.post("/forgot-password", passwordRecoveryLimiter, async (req, res) => {
+  const { email } = z.object({ email: z.string().trim().email().max(254) }).parse(req.body);
+  const user = await User.findOne({ email: email.toLowerCase() }).select("+passwordHash");
+  if (!user) {
+    res.status(404).json({ error: "Tài khoản chưa được đăng ký" });
+    return;
+  }
+  if (!user.passwordHash) {
+    res.status(400).json({ error: "Tài khoản này đăng nhập bằng Google và chưa thiết lập mật khẩu." });
+    return;
+  }
+  const smtpUser = process.env.SMTP_USER?.trim();
+  const smtpPassword = process.env.SMTP_APP_PASSWORD?.trim();
+  const appBaseUrl = process.env.APP_BASE_URL?.trim() ||
+    (process.env.NODE_ENV === "production" ? "" : "http://localhost:3000");
+  if (!smtpUser || !smtpPassword || !appBaseUrl) {
+    res.status(503).json({ error: "Chức năng quên mật khẩu chưa được cấu hình SMTP trên máy chủ." });
+    return;
+  }
+  const token = randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+  const resetUrl = new URL("/reset-password", appBaseUrl);
+  resetUrl.searchParams.set("token", token);
+  await User.updateOne({ _id: user._id }, {
+    $set: { passwordResetTokenHash: hashResetToken(token), passwordResetExpiresAt: expiresAt },
+  });
+  try {
+    await sendSmtpEmail({
+      to: user.email,
+      subject: "Đặt lại mật khẩu Chi Tiêu",
+      html: resetEmailHtml(resetUrl.toString()),
+    });
+  } catch (error) {
+    await User.updateOne({ _id: user._id, passwordResetTokenHash: hashResetToken(token) }, {
+      $unset: { passwordResetTokenHash: 1, passwordResetExpiresAt: 1 },
+    });
+    console.error("Password reset SMTP delivery failed:", error);
+    res.status(503).json({ error: "Chưa gửi được email khôi phục. Vui lòng thử lại sau." });
+    return;
+  }
+  res.json({ message: "Đã gửi liên kết khôi phục đến email của bạn." });
+});
+
+router.post("/reset-password", passwordRecoveryLimiter, async (req, res) => {
+  const input = z.object({
+    token: z.string().length(64),
+    password: z.string().min(8).max(128).refine((value) => value.trim().length > 0),
+  }).parse(req.body);
+  const tokenHash = hashResetToken(input.token);
+  const user = await User.findOne({
+    passwordResetTokenHash: tokenHash,
+    passwordResetExpiresAt: { $gt: new Date() },
+  });
+  if (!user) {
+    res.status(400).json({ error: "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn." });
+    return;
+  }
+  const passwordHash = await bcrypt.hash(input.password, 12);
+  const result = await User.updateOne({
+    _id: user._id,
+    passwordResetTokenHash: tokenHash,
+    passwordResetExpiresAt: { $gt: new Date() },
+  }, {
+    $set: { passwordHash },
+    $unset: { passwordResetTokenHash: 1, passwordResetExpiresAt: 1 },
+    $inc: { authVersion: 1 },
+  });
+  if (!result.modifiedCount) {
+    res.status(400).json({ error: "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn." });
+    return;
+  }
+  res.json({ message: "Mật khẩu đã được đặt lại. Vui lòng đăng nhập lại." });
 });
 
 router.post("/register", async (req, res) => {
@@ -260,7 +348,7 @@ router.post("/login", loginAttemptLimiter, async (req, res) => {
       });
     return;
   }
-  const sessionExpiresAt = setSessionCookie(res, String(user._id));
+  const sessionExpiresAt = setSessionCookie(res, String(user._id), user.authVersion ?? 0);
   res.json({
     sessionExpiresAt,
     user: {

@@ -62,6 +62,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const nav = useNavigate();
   const location = useLocation();
   const [show, setShow] = useState(false);
+  const [acceptedPolicies, setAcceptedPolicies] = useState(false);
   const [busy, setBusy] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const handledAuthNotice = useRef<string | null>(null);
@@ -114,9 +115,9 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
     if (Object.keys(validationErrors).length) {
       const firstInvalidField = Object.keys(validationErrors)[0] as AuthField;
       (
-        event.currentTarget.elements.namedItem(firstInvalidField) as
-          | HTMLInputElement
-          | null
+        event.currentTarget.elements.namedItem(
+          firstInvalidField,
+        ) as HTMLInputElement | null
       )?.focus();
       return;
     }
@@ -137,10 +138,14 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
           : {}),
       });
       if (mode === "register") {
-        showToast("Đăng ký thành công. Vui lòng đăng nhập để tiếp tục.", "success");
+        showToast(
+          "Đăng ký thành công. Vui lòng đăng nhập để tiếp tục.",
+          "success",
+        );
         nav("/login", { replace: true, state: { registered: true } });
       } else {
-        if (!result.user) throw new Error("Máy chủ không trả về thông tin tài khoản.");
+        if (!result.user)
+          throw new Error("Máy chủ không trả về thông tin tài khoản.");
         showToast("Đăng nhập thành công.", "success");
         setUser(result.user, result.sessionExpiresAt);
         nav("/", { replace: true });
@@ -168,7 +173,11 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   return (
     <div className="auth-layout">
       <section className="auth-story">
-        <Link to="/" aria-label="Chi Tiêu – về trang chủ" className="brand auth-brand">
+        <Link
+          to="/"
+          aria-label="Chi Tiêu – về trang chủ"
+          className="brand auth-brand"
+        >
           <div className="brand-mark">
             <span></span>
             <i></i>
@@ -298,7 +307,31 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
                 </small>
               )}
             </label>
-            <Button type="submit" disabled={busy}>
+            {mode === "login" && (
+              <div className="auth-forgot-row">
+                <Link to="/forgot-password">Quên mật khẩu?</Link>
+              </div>
+            )}
+            <label className="auth-consent">
+              <input
+                type="checkbox"
+                checked={acceptedPolicies}
+                onChange={(event) => setAcceptedPolicies(event.target.checked)}
+                required
+              />
+              <span>
+                Tôi đã đọc và đồng ý với{" "}
+                <Link to="/terms" target="_blank" rel="noreferrer">
+                  Điều khoản sử dụng
+                </Link>{" "}
+                và{" "}
+                <Link to="/privacy" target="_blank" rel="noreferrer">
+                  Chính sách quyền riêng tư
+                </Link>{" "}
+                của website quản lý chi tiêu.
+              </span>
+            </label>
+            <Button type="submit" disabled={busy || !acceptedPolicies}>
               {busy
                 ? "Đang xử lý…"
                 : mode === "login"
@@ -309,10 +342,13 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
           </form>
           {!demo && (
             <>
-              <div className="auth-divider"><span>hoặc tiếp tục với</span></div>
+              <div className="auth-divider">
+                <span>hoặc tiếp tục với</span>
+              </div>
               <button
                 className="google-signin-button"
                 type="button"
+                disabled={!acceptedPolicies}
                 onClick={() => window.location.assign("/api/auth/google")}
               >
                 <svg

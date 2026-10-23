@@ -1,15 +1,14 @@
 import { ArrowRight, Compass, Home, Sparkles } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import "./not-found.css";
 
 export default function NotFound() {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const home = user ? "/" : "/login";
 
   return (
-    <main className="not-found- page">
+    <main className="not-found-page">
       <div className="not-found-glow not-found-glow-one" aria-hidden="true" />
       <div className="not-found-glow not-found-glow-two" aria-hidden="true" />
 
@@ -47,6 +46,11 @@ export default function NotFound() {
           <br />
           <span>Không tìm thấy trang</span>
         </h1>
+
+        <p className="not-found-copy">
+          Đường dẫn này có thể đã thay đổi hoặc không còn tồn tại.
+          Hãy quay về trang chính để tiếp tục nhé.
+        </p>
 
         <div className="not-found-actions">
           <Link to={home} className="not-found-home">

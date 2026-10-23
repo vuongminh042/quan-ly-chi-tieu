@@ -20,6 +20,9 @@ const userSchema = new Schema(
     avatar: { type: String, maxlength: 2048 },
     avatarPublicId: { type: String, maxlength: 255 },
     passwordHash: { type: String, select: false },
+    passwordResetTokenHash: { type: String, select: false },
+    passwordResetExpiresAt: { type: Date, select: false },
+    authVersion: { type: Number, default: 0 },
   },
   { timestamps: true },
 );
