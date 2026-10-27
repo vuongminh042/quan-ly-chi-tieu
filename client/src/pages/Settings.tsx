@@ -6,8 +6,6 @@ import {
   Eye,
   Plus,
   Trash2,
-  Tags,
-  ShieldCheck,
   X,
 } from "lucide-react";
 import { get, post, put, del } from "../lib/api";
@@ -234,7 +232,6 @@ export default function Settings() {
       />
       <div className="settings-grid">
         <div className="settings-main">
-          {" "}
           <Panel title="Hồ sơ cá nhân" className="settings-profile">
             <div className="settings-user-intro">
               <button
@@ -388,37 +385,6 @@ export default function Settings() {
                 <Plus size={15} /> Thêm
               </Button>
             </form>
-          </Panel>
-        </div>
-        <div className="settings-aside">
-          <Panel className="privacy-card">
-            <div className="privacy-mark">
-              <ShieldCheck size={20} />
-            </div>
-            <h2>Dữ liệu thuộc về bạn.</h2>
-            <p>
-              Giao dịch và mục tiêu luôn được lọc theo tài khoản đang
-              đăng nhập.
-            </p>
-            <div className="privacy-divider" />
-            <div>
-              <span>Phiên đăng nhập</span>
-              <strong>HttpOnly cookie · 5 ngày</strong>
-            </div>
-            <div>
-              <span>Chế độ dữ liệu</span>
-              <strong>
-                {demo ? "Xem thử trên trình duyệt" : "MongoDB cá nhân"}
-              </strong>
-            </div>
-          </Panel>
-          <Panel className="settings-about">
-            <span className="about-mark">
-              <Tags size={17} />
-            </span>
-            <strong>Chi Tiêu</strong>
-            <p>Rõ từng đồng, nhẹ đầu mỗi tháng.</p>
-            <small>Phiên bản 1.0 · MERN Stack</small>
           </Panel>
         </div>
       </div>

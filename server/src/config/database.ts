@@ -8,7 +8,11 @@ export async function connectDatabase(): Promise<boolean> {
   }
   try {
     mongoose.set('strictQuery', true);
-    await mongoose.connect(uri, { serverSelectionTimeoutMS: 8_000 });
+    await mongoose.connect(uri, {
+      serverSelectionTimeoutMS: 8_000,
+      maxPoolSize: 20,
+      minPoolSize: 2,
+    });
     console.info(`Đã kết nối MongoDB (${mongoose.connection.name}).`);
     return true;
   } catch (error) {

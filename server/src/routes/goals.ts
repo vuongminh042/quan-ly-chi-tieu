@@ -3,8 +3,9 @@ import { Goal } from '../models/finance.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireDatabase } from '../middleware/http.js';
 import { contributionSchema, goalSchema } from './validation.js';
+import { asyncRouter } from '../middleware/async-router.js';
 
-const router = Router();
+const router = asyncRouter();
 router.use(requireDatabase, requireAuth);
 router.get('/', async (req, res) => {
   const items = await Goal.find({ userId: req.userId }).sort({ deadline: 1, createdAt: -1 }).lean();

@@ -5,8 +5,9 @@ import { Transaction } from '../models/finance.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireDatabase } from '../middleware/http.js';
 import { accountSchema, accountUpdateSchema } from './validation.js';
+import { asyncRouter } from '../middleware/async-router.js';
 
-const router = Router();
+const router = asyncRouter();
 router.use(requireDatabase, requireAuth);
 
 router.get('/', async (req, res) => {

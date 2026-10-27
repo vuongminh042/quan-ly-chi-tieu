@@ -7,8 +7,9 @@ import { requireDatabase } from '../middleware/http.js';
 import { queryTransactions } from '../services/transactions.js';
 import { transactionSchema } from './validation.js';
 import { buildReport, exportWorkbook } from '../services/reports.js';
+import { asyncRouter } from '../middleware/async-router.js';
 
-const router = Router();
+const router = asyncRouter();
 router.use(requireDatabase, requireAuth);
 
 function asyncRoute(handler: RequestHandler): RequestHandler {

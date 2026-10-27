@@ -13,8 +13,10 @@ import {
 import { requireDatabase } from "../middleware/http.js";
 import { loginSchema, registerSchema } from "./validation.js";
 import { sendSmtpEmail } from "../services/smtp.js";
+import { asyncRouter } from "../middleware/async-router.js";
+import { publishAccountChanged } from "../services/support-socket.js";
 
-const router = Router();
+const router = asyncRouter();
 router.use(requireDatabase);
 const googleStateCookie = "chitieu_google_state";
 const loginAttemptLimiter = rateLimit({
@@ -95,8 +97,8 @@ function googleRedirectUri(req: import("express").Request): string {
 function googleCookieOptions() {
   return {
     httpOnly: true,
-    secure: process.env.COOKIE_SECURE === "false" ? false : true,
-    sameSite: (process.env.COOKIE_SAME_SITE === "lax" ? "lax" : "none") as
+    secure: process.env.NODE_ENV === "production" || process.env.COOKIE_SECURE !== "false",
+    sameSite: (process.env.COOKIE_SAME_SITE === "none" ? "none" : "lax") as
       | "lax"
       | "none",
     path: "/api/auth/google",
@@ -192,12 +194,14 @@ router.get("/google/callback", async (req, res) => {
 
     const email = profile.email.trim().toLowerCase();
     let user = await User.findOne({ email });
+    let created = false;
     if (!user) {
       user = await User.create({
         name: profile.name?.trim().slice(0, 80) || email.slice(0, 80),
         email,
         ...(profile.picture ? { avatar: profile.picture } : {}),
       });
+      created = true;
       try {
         await seedStarterData(String(user._id));
       } catch (error) {
@@ -213,6 +217,7 @@ router.get("/google/callback", async (req, res) => {
       res.redirect("/login?google=account_deactivated");
       return;
     }
+    if (created) publishAccountChanged(String(user._id), "registered");
     setSessionCookie(res, String(user._id), user.authVersion ?? 0);
     res.redirect("/");
   } catch (error) {
@@ -225,11 +230,11 @@ router.post("/forgot-password", passwordRecoveryLimiter, async (req, res) => {
   const { email } = z.object({ email: z.string().trim().email().max(254) }).parse(req.body);
   const user = await User.findOne({ email: email.toLowerCase() }).select("+passwordHash");
   if (!user) {
-    res.status(404).json({ error: "Tài khoản chưa được đăng ký" });
+    res.json({ message: "Nếu tài khoản đủ điều kiện, liên kết khôi phục sẽ được gửi đến email đã đăng ký." });
     return;
   }
   if (!user.passwordHash) {
-    res.status(400).json({ error: "Tài khoản này đăng nhập bằng Google và chưa thiết lập mật khẩu." });
+    res.json({ message: "Nếu tài khoản đủ điều kiện, liên kết khôi phục sẽ được gửi đến email đã đăng ký." });
     return;
   }
   const smtpUser = process.env.SMTP_USER?.trim();
@@ -237,7 +242,7 @@ router.post("/forgot-password", passwordRecoveryLimiter, async (req, res) => {
   const appBaseUrl = process.env.APP_BASE_URL?.trim() ||
     (process.env.NODE_ENV === "production" ? "" : "http://localhost:3000");
   if (!smtpUser || !smtpPassword || !appBaseUrl) {
-    res.status(503).json({ error: "Chức năng quên mật khẩu chưa được cấu hình SMTP trên máy chủ." });
+    res.json({ message: "Nếu tài khoản đủ điều kiện, liên kết khôi phục sẽ được gửi đến email đã đăng ký." });
     return;
   }
   const token = randomBytes(32).toString("hex");
@@ -258,10 +263,10 @@ router.post("/forgot-password", passwordRecoveryLimiter, async (req, res) => {
       $unset: { passwordResetTokenHash: 1, passwordResetExpiresAt: 1 },
     });
     console.error("Password reset SMTP delivery failed:", error);
-    res.status(503).json({ error: "Chưa gửi được email khôi phục. Vui lòng thử lại sau." });
+    res.json({ message: "Nếu tài khoản đủ điều kiện, liên kết khôi phục sẽ được gửi đến email đã đăng ký." });
     return;
   }
-  res.json({ message: "Đã gửi liên kết khôi phục đến email của bạn." });
+  res.json({ message: "Nếu tài khoản đủ điều kiện, liên kết khôi phục sẽ được gửi đến email đã đăng ký." });
 });
 
 router.post("/reset-password", passwordRecoveryLimiter, async (req, res) => {
@@ -314,6 +319,7 @@ router.post("/register", async (req, res) => {
     await User.deleteOne({ _id: user._id });
     throw error;
   }
+  publishAccountChanged(String(user._id), "registered");
   res.status(201).json({
     user: {
       id: String(user._id),
@@ -331,7 +337,7 @@ router.post("/login", loginAttemptLimiter, async (req, res) => {
     "+passwordHash",
   );
   if (!user) {
-    res.status(404).json({ error: "Tài khoản chưa được đăng ký." });
+    res.status(401).json({ error: "Email hoặc mật khẩu chưa chính xác." });
     return;
   }
   if (!user.passwordHash || !(await bcrypt.compare(input.password, user.passwordHash))) {
@@ -394,6 +400,7 @@ router.put("/profile", requireAuth, async (req, res) => {
     { name: input.name },
     { new: true },
   ).select("name email avatar");
+  if (user) publishAccountChanged(String(user._id), "profile");
   res.json({
     user: {
       id: String(user?._id),

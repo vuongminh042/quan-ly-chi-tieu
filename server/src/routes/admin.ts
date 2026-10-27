@@ -5,18 +5,24 @@ import {
   type Response,
 } from "express";
 import { Types } from "mongoose";
+import mongoose from "mongoose";
 import { z } from "zod";
 import { AdminAction } from "../models/admin.js";
-import { User } from "../models/core.js";
+import { Account, Category, User } from "../models/core.js";
+import { Goal, Transaction } from "../models/finance.js";
+import { SupportConversation, SupportMessage } from "../models/support.js";
 import { requireAuth, isAdminEmail } from "../middleware/auth.js";
 import { requireDatabase } from "../middleware/http.js";
+import { asyncRouter } from "../middleware/async-router.js";
+import { publishAccountChanged } from "../services/support-socket.js";
+import { deleteCloudinaryAvatar, getCloudinaryConfig, isUserAvatarPublicId } from "../services/cloudinary.js";
 
-const router = Router();
+const router = asyncRouter();
 const pageSize = 20;
 const listQuery = z.object({
   search: z.string().trim().max(120).optional().default(""),
   status: z.enum(["all", "active", "deactivated"]).optional().default("all"),
-  page: z.coerce.number().int().min(1).optional().default(1),
+  page: z.coerce.number().int().min(1).max(1_000_000).optional().default(1),
 });
 
 async function requireAdmin(
@@ -69,6 +75,7 @@ router.get("/users", async (req, res) => {
       email: user.email,
       avatar: user.avatar,
       isActive: user.isActive !== false,
+      isAdmin: isAdminEmail(user.email),
       createdAt: user.createdAt,
     })),
     pagination: {
@@ -98,6 +105,7 @@ router.post("/users/:id/restore", async (req, res) => {
     res.status(409).json({ error: "Tài khoản này đang hoạt động." });
     return;
   }
+  publishAccountChanged(String(user._id), "status");
   let warning: string | undefined;
   try {
     await AdminAction.create({
@@ -124,6 +132,68 @@ router.post("/users/:id/restore", async (req, res) => {
     },
     warning,
   });
+});
+
+router.delete("/users/:id", async (req, res) => {
+  if (!Types.ObjectId.isValid(req.params.id)) {
+    res.status(404).json({ error: "Không tìm thấy tài khoản." });
+    return;
+  }
+  const targetId = new Types.ObjectId(req.params.id);
+  const target = await User.findById(targetId).select("email avatarPublicId");
+  if (!target) {
+    res.status(404).json({ error: "Không tìm thấy tài khoản." });
+    return;
+  }
+  if (String(target._id) === req.userId) {
+    res.status(409).json({ error: "Bạn không thể xóa tài khoản quản trị đang sử dụng." });
+    return;
+  }
+  if (isAdminEmail(target.email)) {
+    res.status(409).json({ error: "Không thể xóa tài khoản quản trị được cấu hình trên máy chủ." });
+    return;
+  }
+
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      const conversations = await SupportConversation.find({
+        $or: [{ accountUserId: targetId }, { visitorEmail: target.email }],
+      }).select("_id").session(session).lean();
+      const conversationIds = conversations.map((conversation) => conversation._id);
+      if (conversationIds.length)
+        await SupportMessage.deleteMany({ conversationId: { $in: conversationIds } }).session(session);
+      await SupportConversation.deleteMany({
+        $or: [{ accountUserId: targetId }, { visitorEmail: target.email }],
+      }).session(session);
+      await Transaction.deleteMany({ userId: targetId }).session(session);
+      await Account.deleteMany({ userId: targetId }).session(session);
+      await Category.deleteMany({ userId: targetId }).session(session);
+      await Goal.deleteMany({ userId: targetId }).session(session);
+      await AdminAction.deleteMany({
+        $or: [{ adminUserId: targetId }, { targetUserId: targetId }],
+      }).session(session);
+      const result = await User.deleteOne({ _id: targetId }).session(session);
+      if (result.deletedCount !== 1) throw new Error("Không thể xóa tài khoản.");
+    });
+  } finally {
+    await session.endSession();
+  }
+
+  publishAccountChanged(String(targetId), "deleted");
+  let warning: string | undefined;
+  const cloudinary = getCloudinaryConfig();
+  if (target.avatarPublicId && isUserAvatarPublicId(target.avatarPublicId, String(targetId)) && !cloudinary) {
+    warning = "Tài khoản và dữ liệu đã được xóa, nhưng ảnh đại diện chưa thể xóa vì Cloudinary chưa được cấu hình.";
+  } else if (cloudinary && target.avatarPublicId && isUserAvatarPublicId(target.avatarPublicId, String(targetId))) {
+    try {
+      await deleteCloudinaryAvatar(target.avatarPublicId, cloudinary);
+    } catch (error) {
+      console.error("Không thể xóa ảnh đại diện khỏi Cloudinary sau khi xóa tài khoản:", error);
+      warning = "Tài khoản và dữ liệu đã được xóa, nhưng ảnh đại diện trên Cloudinary chưa xóa được.";
+    }
+  }
+  res.json({ deleted: true, warning });
 });
 
 router.get("/actions", async (_req, res) => {

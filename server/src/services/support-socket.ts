@@ -70,9 +70,13 @@ export function initSupportSocket(server: HttpServer): Server {
           return next(new Error("AUTH_REQUIRED"));
         }
         if (typeof payload.sub !== "string") return next(new Error("AUTH_REQUIRED"));
-        const user = await User.findById(payload.sub).select("email isActive");
+        if (typeof payload.iat !== "number" || typeof payload.exp !== "number")
+          return next(new Error("AUTH_REQUIRED"));
+        const user = await User.findById(payload.sub).select("email isActive authVersion");
         if (!user || user.isActive === false)
           return next(new Error("FORBIDDEN"));
+        if ((typeof payload.ver === "number" ? payload.ver : 0) !== (user.authVersion ?? 0))
+          return next(new Error("AUTH_REQUIRED"));
         if (role === "admin" && !isAdminEmail(user.email))
           return next(new Error("FORBIDDEN"));
         socket.data.role = role;
@@ -417,4 +421,13 @@ export function publishSupportDeleted(
     });
   supportIo.to(adminRoom).emit("support:conversation-deleted", { conversationId });
   supportIo.in(visitorRoom(conversationId)).socketsLeave(visitorRoom(conversationId));
+}
+
+export function publishAccountChanged(
+  userId: string,
+  change: "registered" | "profile" | "status" | "deleted",
+): void {
+  supportIo?.to(adminRoom).emit("admin:accounts-changed", { id: userId, change });
+  if (change === "deleted")
+    supportIo?.to(accountRoom(userId)).emit("auth:account-deleted", { id: userId });
 }

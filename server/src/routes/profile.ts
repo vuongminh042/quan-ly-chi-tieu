@@ -12,8 +12,10 @@ import {
   isCloudinaryAvatarUrl,
   isUserAvatarPublicId,
 } from "../services/cloudinary.js";
+import { asyncRouter } from "../middleware/async-router.js";
+import { publishAccountChanged } from "../services/support-socket.js";
 
-const router = Router();
+const router = asyncRouter();
 router.use(requireDatabase, requireAuth);
 const avatarSignatureLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -81,6 +83,7 @@ router.post("/deactivate", async (req, res) => {
     return;
   }
   await User.updateOne({ _id: user._id, isActive: { $ne: false } }, { $set: { isActive: false } });
+  publishAccountChanged(String(user._id), "status");
   clearSessionCookie(res);
   res.status(204).end();
 });
@@ -131,6 +134,7 @@ router.put("/", async (req, res) => {
     res.status(404).json({ error: "Không tìm thấy hồ sơ." });
     return;
   }
+  publishAccountChanged(String(user._id), "profile");
   let warning: string | undefined;
   if (
     input.avatarPublicId &&

@@ -22,8 +22,8 @@ export function jwtSecret(): string {
 }
 
 export function setSessionCookie(res: Response, userId: string, authVersion = 0): number {
-  const sameSite = process.env.COOKIE_SAME_SITE === "lax" ? "lax" : "none";
-  const secure = process.env.COOKIE_SECURE === "false" ? false : true;
+  const sameSite = process.env.COOKIE_SAME_SITE === "none" ? "none" : "lax";
+  const secure = process.env.NODE_ENV === "production" || process.env.COOKIE_SECURE !== "false";
   const expiresAt = Math.floor(Date.now() / 1000 + sessionDurationSeconds) * 1000;
   const token = jwt.sign(
     { sub: userId, ver: authVersion },
@@ -41,8 +41,8 @@ export function setSessionCookie(res: Response, userId: string, authVersion = 0)
 }
 
 export function clearSessionCookie(res: Response): void {
-  const sameSite = process.env.COOKIE_SAME_SITE === "lax" ? "lax" : "none";
-  const secure = process.env.COOKIE_SECURE === "false" ? false : true;
+  const sameSite = process.env.COOKIE_SAME_SITE === "none" ? "none" : "lax";
+  const secure = process.env.NODE_ENV === "production" || process.env.COOKIE_SECURE !== "false";
   res.clearCookie(tokenCookie, { httpOnly: true, secure, sameSite, path: "/" });
 }
 

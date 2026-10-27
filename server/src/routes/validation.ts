@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 const money = z.coerce.number().finite().positive().max(1_000_000_000_000);
-const dateText = z.coerce.date();
+const dateText = z.coerce.date().refine(value => value.getTime() <= Date.now() + 86_400_000, 'Ngày không được nằm quá xa trong tương lai.');
 const displayName = z.string().trim().min(2).max(80).regex(/^[\p{L}\p{M}]+(?:[ .'\u2019-][\p{L}\p{M}]+)*$/u, 'Tên chỉ gồm chữ cái, dấu cách, dấu chấm, dấu nháy hoặc dấu gạch nối.');
 const email = z.string().trim().max(254).email().transform(value => value.toLowerCase());
 const password = z.string().min(1).max(128).refine(value => value.trim().length > 0, 'Mật khẩu không được chỉ chứa khoảng trắng.');

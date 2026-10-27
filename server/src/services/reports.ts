@@ -23,6 +23,9 @@ function monthLabel(key: string): string {
 
 export async function buildReport(userId: string, query: Record<string, unknown>) {
   const filter = await transactionFilter(userId, query);
+  const matchingCount = await Transaction.countDocuments(filter);
+  if (matchingCount > 20_000)
+    throw Object.assign(new Error('Khoảng báo cáo quá lớn. Hãy lọc theo khoảng ngày nhỏ hơn.'), { status: 413 });
   const items = await Transaction.find(filter)
     .populate('categoryId', 'name color').populate('accountId', 'name kind').sort({ date: 1, _id: 1 }).lean() as unknown as ReportRow[];
   let totalIncome = 0;

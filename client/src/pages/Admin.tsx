@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Check, ChevronLeft, ChevronRight, RotateCcw, Search, ShieldCheck, Users } from 'lucide-react';
-import { get, post } from '../lib/api';
+import { Check, ChevronLeft, ChevronRight, RotateCcw, Search, ShieldCheck, Trash2, Users } from 'lucide-react';
+import { del, get, post } from '../lib/api';
 import type { AppOutlet } from '../components/AppShell';
 import { useConfirm } from '../components/ConfirmDialog';
 import { Button, EmptyState, PageTitle, Panel } from '../components/UI';
 import { AdminSupportInbox } from '../components/AdminSupportInbox';
+import { io } from 'socket.io-client';
+import { useAuth } from '../lib/auth';
 
-type ManagedUser = { id: string; name: string; email: string; avatar?: string; isActive: boolean; createdAt: string };
+type ManagedUser = { id: string; name: string; email: string; avatar?: string; isActive: boolean; isAdmin: boolean; createdAt: string };
 type UserList = { items: ManagedUser[]; pagination: { page: number; limit: number; total: number; totalPages: number } };
 type AdminAction = { adminEmail: string; targetEmail: string; action: 'account_restored'; createdAt: string };
 
@@ -17,6 +19,7 @@ function dateTime(value: string) {
 
 export default function Admin() {
   const { notify } = useOutletContext<AppOutlet>();
+  const { user } = useAuth();
   const confirm = useConfirm();
   const [users, setUsers] = useState<UserList>({ items: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } });
   const [actions, setActions] = useState<AdminAction[]>([]);
@@ -26,6 +29,9 @@ export default function Admin() {
   const [page, setPage] = useState(1);
   const [busy, setBusy] = useState(true);
   const [restoring, setRestoring] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ManagedUser | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleting, setDeleting] = useState(false);
   const requestId = useRef(0);
 
   const load = useCallback(async () => {
@@ -52,6 +58,16 @@ export default function Admin() {
     return () => { requestId.current += 1; };
   }, [load]);
 
+  useEffect(() => {
+    const socket = io({
+      path: '/socket.io',
+      auth: { role: 'admin' },
+      withCredentials: true,
+    });
+    socket.on('admin:accounts-changed', () => { void load(); });
+    return () => { socket.disconnect(); };
+  }, [load]);
+
   function submitSearch(event: FormEvent) {
     event.preventDefault();
     setPage(1);
@@ -76,12 +92,28 @@ export default function Admin() {
     }
   }
 
+  async function permanentlyDeleteAccount() {
+    if (!deleteTarget || deleteConfirmation.trim().toLowerCase() !== deleteTarget.email.toLowerCase()) return;
+    setDeleting(true);
+    try {
+      const result = await del<{ deleted: boolean; warning?: string }>(`/admin/users/${deleteTarget.id}`);
+      notify(result.warning ?? `Đã xóa vĩnh viễn tài khoản ${deleteTarget.email} và dữ liệu liên quan.`);
+      setDeleteTarget(null);
+      setDeleteConfirmation('');
+      void load();
+    } catch (error: any) {
+      notify(error?.response?.data?.error ?? 'Không thể xóa tài khoản.');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="page-stack">
       <PageTitle
         eyebrow="QUẢN LÝ NGƯỜI DÙNG"
         title="Quản trị tài khoản."
-        description="Tra cứu trạng thái tài khoản và hỗ trợ khôi phục mà không thay đổi dữ liệu tài chính."
+        description="Tra cứu, khôi phục hoặc xóa vĩnh viễn tài khoản và dữ liệu liên quan."
       />
       <AdminSupportInbox />
       <div className="admin-summary">
@@ -110,7 +142,10 @@ export default function Admin() {
                   <td><div className="table-transaction"><span className="admin-user-icon">{account.avatar ? <img src={account.avatar} alt={`Ảnh đại diện ${account.name}`} /> : <Users size={16}/>}</span><span><strong>{account.name}</strong><small>{account.email}</small></span></div></td>
                   <td>{dateTime(account.createdAt)}</td>
                   <td><span className={`admin-status ${account.isActive ? 'active' : 'deactivated'}`}>{account.isActive ? 'Đang hoạt động' : 'Đã vô hiệu hóa'}</span></td>
-                  <td className="align-right">{!account.isActive && <Button variant="secondary" disabled={restoring === account.id} onClick={() => void restoreAccount(account)}><RotateCcw size={14}/>{restoring === account.id ? 'Đang khôi phục…' : 'Khôi phục'}</Button>}</td>
+                  <td className="align-right">
+                    {!account.isActive && <Button variant="secondary" disabled={restoring === account.id} onClick={() => void restoreAccount(account)}><RotateCcw size={14}/>{restoring === account.id ? 'Đang khôi phục…' : 'Khôi phục'}</Button>}{' '}
+                    {!account.isAdmin && account.id !== user?.id && <Button variant="danger" onClick={() => { setDeleteTarget(account); setDeleteConfirmation(''); }}><Trash2 size={14}/>Xóa vĩnh viễn</Button>}
+                  </td>
                 </tr>
               ))}</tbody>
             </table>
@@ -134,6 +169,25 @@ export default function Admin() {
         ))}</div> : <EmptyState title="Chưa có thao tác khôi phục" hint="Các lần khôi phục tài khoản sẽ được ghi lại tại đây."/>}
       </Panel>
       <div className="admin-data-note"><ShieldCheck size={16}/> Khôi phục chỉ kích hoạt lại tài khoản. Giao dịch, tài khoản tiền và số dư được giữ nguyên.</div>
+      {deleteTarget && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !deleting) setDeleteTarget(null); }}>
+          <section className="modal-card" role="alertdialog" aria-modal="true" aria-labelledby="delete-account-title">
+            <div className="modal-head">
+              <div><span className="eyebrow">XÓA VĨNH VIỄN</span><h2 id="delete-account-title">Xóa tài khoản này?</h2></div>
+            </div>
+            <div className="form-stack">
+              <p>Tài khoản <strong>{deleteTarget.email}</strong>, giao dịch, tài khoản tiền, mục tiêu và hội thoại hỗ trợ liên quan sẽ bị xóa vĩnh viễn. Không thể hoàn tác.</p>
+              <label>Nhập email tài khoản để xác nhận
+                <input value={deleteConfirmation} onChange={event => setDeleteConfirmation(event.target.value)} autoComplete="off" autoFocus disabled={deleting} />
+              </label>
+              <div className="modal-actions">
+                <Button type="button" variant="secondary" onClick={() => setDeleteTarget(null)} disabled={deleting}>Hủy</Button>
+                <Button type="button" variant="danger" onClick={() => void permanentlyDeleteAccount()} disabled={deleting || deleteConfirmation.trim().toLowerCase() !== deleteTarget.email.toLowerCase()}>{deleting ? 'Đang xóa…' : 'Xóa vĩnh viễn'}</Button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

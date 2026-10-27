@@ -13,15 +13,17 @@ import reportRoutes from './routes/reports.js';
 import adminRoutes from './routes/admin.js';
 import supportRoutes from './routes/support.js';
 import { databaseReady } from './config/database.js';
-import { apiErrorHandler, notFound } from './middleware/http.js';
+import { apiErrorHandler, apiRateLimiter, notFound, protectBrowserWrites } from './middleware/http.js';
 
 const app = express();
 app.disable('x-powered-by');
-app.set('trust proxy', 1);
+// Trust only the immediate reverse proxy when explicitly enabled by the deployment.
+if (process.env.TRUST_PROXY === 'true') app.set('trust proxy', 1);
 app.use(helmet({ frameguard: false, contentSecurityPolicy: false }));
-app.use(express.json({ limit: '256kb' }));
+app.use(express.json({ limit: '64kb', strict: true }));
 app.use(cookieParser());
 app.use((_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
+app.use('/api', apiRateLimiter, protectBrowserWrites);
 app.get('/api/health', (_req, res) => res.status(200).json({ ok: true, database: databaseReady(), storage: 'mongodb' }));
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);

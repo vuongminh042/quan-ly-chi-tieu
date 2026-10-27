@@ -312,26 +312,28 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
                 <Link to="/forgot-password">Quên mật khẩu?</Link>
               </div>
             )}
-            <label className="auth-consent">
-              <input
-                type="checkbox"
-                checked={acceptedPolicies}
-                onChange={(event) => setAcceptedPolicies(event.target.checked)}
-                required
-              />
-              <span>
-                Tôi đã đọc và đồng ý với{" "}
-                <Link to="/terms" target="_blank" rel="noreferrer">
-                  Điều khoản sử dụng
-                </Link>{" "}
-                và{" "}
-                <Link to="/privacy" target="_blank" rel="noreferrer">
-                  Chính sách quyền riêng tư
-                </Link>{" "}
-                của website quản lý chi tiêu.
-              </span>
-            </label>
-            <Button type="submit" disabled={busy || !acceptedPolicies}>
+            {mode === "login" && (
+              <label className="auth-consent">
+                <input
+                  type="checkbox"
+                  checked={acceptedPolicies}
+                  onChange={(event) => setAcceptedPolicies(event.target.checked)}
+                  required
+                />
+                <span>
+                  Tôi đã đọc và đồng ý với{" "}
+                  <Link to="/terms" target="_blank" rel="noreferrer">
+                    Điều khoản sử dụng
+                  </Link>{" "}
+                  và{" "}
+                  <Link to="/privacy" target="_blank" rel="noreferrer">
+                    Chính sách quyền riêng tư
+                  </Link>{" "}
+                  của website quản lý chi tiêu.
+                </span>
+              </label>
+            )}
+            <Button type="submit" disabled={busy || (mode === "login" && !acceptedPolicies)}>
               {busy
                 ? "Đang xử lý…"
                 : mode === "login"
@@ -348,7 +350,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
               <button
                 className="google-signin-button"
                 type="button"
-                disabled={!acceptedPolicies}
+                disabled={mode === "login" && !acceptedPolicies}
                 onClick={() => window.location.assign("/api/auth/google")}
               >
                 <svg

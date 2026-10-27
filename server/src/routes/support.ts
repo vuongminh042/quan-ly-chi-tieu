@@ -5,6 +5,8 @@ import { Types } from "mongoose";
 import { z } from "zod";
 import { isAdminEmail, requireAuth } from "../middleware/auth.js";
 import { requireDatabase } from "../middleware/http.js";
+import { asyncRouter } from "../middleware/async-router.js";
+import { publishAccountChanged } from "../services/support-socket.js";
 import { AdminAction } from "../models/admin.js";
 import { User } from "../models/core.js";
 import { sensitiveSupportContentWarning } from "../services/support-content.js";
@@ -24,7 +26,7 @@ import {
   publishUnreadCount,
 } from "../services/support-socket.js";
 
-const router = Router();
+const router = asyncRouter();
 const visitorLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
   limit: 30,
@@ -463,6 +465,7 @@ router.post("/admin/conversations/:id/restore-and-link-account", async (req, res
       res.status(409).json({ error: "Không thể khôi phục tài khoản lúc này. Hãy thử lại." });
       return;
     }
+    if (activatedUser) publishAccountChanged(String(user._id), "status");
   }
   let warning: string | undefined;
   if (restored) {

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import axios from 'axios';
+import { io } from 'socket.io-client';
 import { http, get, setDemoMode } from './api';
 import type { User } from '../types';
 import { useToast } from '../components/Toast';
@@ -7,7 +8,7 @@ import { useToast } from '../components/Toast';
 const DEMO_USER: User = { id: 'demo-user', name: 'Linh Nguyễn', email: 'linh@example.com' };
 const SIGNED_OUT_KEY = 'chitieu-signed-out';
 const SESSION_EXPIRY_KEY = 'chitieu-session-expires-at';
-const SESSION_EXPIRED_MESSAGE = 'Phiên đăng nhập của bạn đã hết hạn';
+const SESSION_EXPIRED_MESSAGE = 'Phiên đăng nhập không còn hợp lệ. Vui lòng đăng nhập lại.';
 type AuthValue = { user: User | null; ready: boolean; demo: boolean; setUser: (user: User | null, sessionExpiresAt?: number) => void; setDemo: (demo: boolean) => void };
 const AuthContext = createContext<AuthValue | null>(null);
 
@@ -59,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       error => {
         if (
           axios.isAxiosError<{ code?: string }>(error) &&
-          error.response?.data?.code === 'SESSION_EXPIRED'
+          ['SESSION_EXPIRED', 'ACCOUNT_NOT_FOUND'].includes(error.response?.data?.code ?? '')
         ) {
           expireSession();
         }
@@ -79,6 +80,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const timer = window.setTimeout(expireSession, delay);
     return () => window.clearTimeout(timer);
   }, [user, demo, sessionExpiresAt, expireSession]);
+
+  useEffect(() => {
+    if (!ready || !user || demo || user.id === DEMO_USER.id) return;
+    const socket = io({
+      path: '/socket.io',
+      auth: { role: user.isAdmin ? 'admin' : 'user' },
+      withCredentials: true,
+    });
+    socket.on('auth:account-deleted', () => {
+      setUser(null);
+      showToast('Tài khoản của bạn đã bị xóa vĩnh viễn. Phiên đăng nhập đã kết thúc.', 'error');
+    });
+    return () => { socket.disconnect(); };
+  }, [ready, user?.id, user?.isAdmin, demo, setUser, showToast]);
 
   useEffect(() => {
     let active = true;

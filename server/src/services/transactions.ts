@@ -1,10 +1,37 @@
 import { Types, type FilterQuery } from 'mongoose';
 import { Category } from '../models/core.js';
 import { Transaction } from '../models/finance.js';
+import { z } from 'zod';
 
 type QueryInput = Record<string, unknown>;
 
+const querySchema = z.object({
+  kind: z.enum(['income', 'expense']).optional(),
+  categoryId: z.string().regex(/^[a-f\d]{24}$/i).optional(),
+  accountId: z.string().regex(/^[a-f\d]{24}$/i).optional(),
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  search: z.string().max(80).optional(),
+  sort: z.enum(['newest', 'oldest']).optional(),
+  page: z.coerce.number().int().min(1).max(1_000_000).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  groupBy: z.enum(['day', 'month', 'year']).optional(),
+}).strict();
+
+function parseQuery(query: QueryInput) {
+  const parsed = querySchema.parse(query);
+  for (const key of ['from', 'to'] as const) {
+    const value = parsed[key];
+    if (value && Number.isNaN(Date.parse(`${value}T00:00:00.000Z`)))
+      throw Object.assign(new Error(`Tham số ${key} không phải ngày hợp lệ.`), { status: 400 });
+  }
+  if (parsed.from && parsed.to && parsed.from > parsed.to)
+    throw Object.assign(new Error('Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.'), { status: 400 });
+  return parsed;
+}
+
 export async function transactionFilter(userId: string, query: QueryInput): Promise<FilterQuery<Record<string, unknown>>> {
+  query = parseQuery(query);
   const filter: FilterQuery<Record<string, unknown>> = { userId };
   if (query.kind === 'income' || query.kind === 'expense') filter.kind = query.kind;
   if (typeof query.categoryId === 'string' && query.categoryId) filter.categoryId = query.categoryId;
@@ -26,6 +53,7 @@ export function escapeRegex(value: string): string {
 }
 
 export async function queryTransactions(userId: string, query: QueryInput) {
+  query = parseQuery(query);
   const page = Math.max(1, Math.floor(Number(query.page) || 1));
   const limit = Math.min(100, Math.max(1, Math.floor(Number(query.limit) || 10)));
   const filter = await transactionFilter(userId, query);
